@@ -28,6 +28,12 @@ class User(AbstractUser):
     recent_processed_activity = models.DateTimeField(null=True, blank=True)
     is_approved = models.BooleanField(default=False)
 
+    server_node = models.ForeignKey('ServerNode', on_delete=models.SET_NULL, default=None, null=True)
+    server_node_name = models.CharField(max_length=30, blank=True, default="Local")
+    remoteOpenapi = models.URLField(blank=True, default="http://127.0.0.1:8000/openapi/")
+    remoteInboxAPI = models.URLField(blank=True, default=f"http://127.0.0.1:8000/api/msgs/create/")
+    remoteFollowAPI = models.URLField(blank=True, default=f"http://127.0.0.1:8000/api/user/<name>/following/{username}/")
+
     def is_friend(self, other_user):
         return Friend.objects.filter(
             Q(user1=self, user2=other_user) | Q(user1=other_user, user2=self)
@@ -197,6 +203,14 @@ def fetch_github_activity(user):
             return response.json()
     return []
 
+
+class ServerNode(models.Model):
+    name = models.CharField(max_length=64, unique=True, default="Remote")
+    host = models.URLField(unique=True, default="Remote")
+    userAPI = models.URLField(unique=True, default="Remote")
+    messageAPI = models.URLField(unique=True, default="Remote")
+    def __str__(self):
+        return self.name
 
 
 class Host(models.Model):

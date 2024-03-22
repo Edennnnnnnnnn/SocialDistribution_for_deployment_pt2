@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     .then(response => response.json())
     .then(posts => {
         const postContainer = document.getElementById('post-container');
-        createPostBlocks(posts, postContainer); // Call the method to create and append post blocks
+        createPostBlocks(posts, postContainer);
     })
     .catch(error => console.error('Error:', error));
 })

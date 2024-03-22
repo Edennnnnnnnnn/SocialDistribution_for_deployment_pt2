@@ -988,6 +988,83 @@ class DeleteIDOfMessageAPIView(APIView):
 ---------------------------------- OpenAPI Settings ----------------------------------
 """
 
+
+class OpenAPIUserAPIView(viewsets.ModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = OpenAPIServerNodeSerializer
+
+
+class OpenAPIView(viewsets.ModelViewSet):
+    queryset = ServerNode.objects.all()
+    serializer_class = OpenAPIServerNodeSerializer
+
+    def list(self, request, *args, **kwargs):
+        json_response = {
+            'our_openapi_instruction': "This is an auto-response that may help you set connection to our OpenAPIs, you "
+                                       "could fetch the OpenAPIs shown below to access specific information about ours.",
+            'our_openapi_url': {
+                'our_host_name': HOSTNAME,
+                'to_add_a_connection_with_us': f'{LOCALHOST}/openapi/',
+                'to_search_a_spec_user': f'{LOCALHOST}/openapi/search/<str:server_node_name>/?q=<str:username>',
+                'to_info_a_spec_user': f'{LOCALHOST}/openapi/message/<str:username>/',
+                'to_get_our_user_list': f'{LOCALHOST}/api/users/',
+            },
+            'our_openapi_method': {
+                'our_host_name': HOSTNAME,
+                'to_add_a_connection_with_us': 'POST, GET',
+                'to_search_a_spec_user': 'GET',
+                'to_info_a_spec_user': 'POST',
+            },
+        }
+
+        return Response(json_response)
+
+    def create(self, request, *args, **kwargs):
+        print(request.data)
+        username = request.data.get('username')
+        password = request.data.get('password')
+        remoteName = str(request.data.get('from'))
+        remoteUsers = str(request.data.get('userAPI'))
+        if not self._checkAccount(username, password):
+            return JsonResponse({'error': 'Invalid credentials'}, status=status.HTTP_400_BAD_REQUEST)
+
+        ServerNode.objects.create(name=remoteName,
+                                  host=remoteName,
+                                  userAPI=remoteUsers)
+        return Response(status=status.HTTP_201_CREATED)
+
+    def _checkAccount(self, username, password):
+        ACCOUNTS = [
+            {'username': 'SD1', 'password': 'SD111'},
+            {'username': 'SD2', 'password': 'SD222'},
+        ]
+        for account in ACCOUNTS:
+            if account['username'] == username and account['password'] == password:
+                return True
+        return False
+
+
+class ServerNodeList(generics.ListAPIView):
+    queryset = ServerNode.objects.all()
+    serializer_class = OpenAPIServerNodeSerializer
+
+
+@api_view(['GET'])
+def getRemoteUsers(request, server_node_name):
+    server_node = get_object_or_404(ServerNode, name=server_node_name)
+    print(server_node)
+
+    try:
+        response = requests.get(server_node.userAPI, timeout=10)
+        response.raise_for_status()
+        users = response.json()
+        serializer = UserSerializer(users, many=True)
+
+        return Response(serializer.data)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 def getRemoteUserAPIS(request, server_node_name, username):
     remoteUser = get_object_or_404(User, username=username)
     urls = {
@@ -1116,3 +1193,4 @@ class PublicFriendsPostsListOPENView(generics.ListAPIView):
             Q(author=user),
             ~Q(visibility='PRIVATE')
         ).order_by('-date_posted')
+    
