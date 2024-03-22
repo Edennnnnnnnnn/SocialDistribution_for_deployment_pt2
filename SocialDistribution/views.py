@@ -39,8 +39,8 @@ from .permissions import IsAuthorOrReadOnly
 from .models import *
 
 User = get_user_model()
-HOSTNAME = "socialdistrib-server-eden"
-LOCALHOST = "https://socialdistrib-server-eden-1ad4ce294a84.herokuapp.com"
+HOSTNAME = "A"
+LOCALHOST = "http://127.0.0.1:8000"
 
 """
 ---------------------------------- Signup/Login Settings ----------------------------------
@@ -133,9 +133,39 @@ class PostDetailView(DetailView):
             return super().render_to_response(context, **response_kwargs)
 
 
-class IndexView(TemplateView):
-    """ * [GET] Get The Home/PP Page """
+from django.shortcuts import render
+import requests
+import base64
+
+
+def indexView(request):
+    """ * [GET] Get The Home Page """
+
+    # Assuming Host model exists and has fields: host, username, password, allowed
+    hosts = Host.objects.filter(allowed=True)
+
+    remote_posts = []
+    for host in hosts:
+        # Authorization Message Header:
+        credentials = base64.b64encode(f'{host.username}:{host.password}'.encode('utf-8')).decode('utf-8')
+        auth_headers = {'Authorization': f'Basic {credentials}'}
+
+        # GET remote `users`:
+        users_endpoint = host.host + 'users/'
+        users_response = requests.get(users_endpoint, headers=auth_headers)
+        if users_response.status_code == 200:
+            users_list = users_response.json().get('items', [])
+
+            for user in users_list:
+                # GET remote `posts` for each user:
+                posts_endpoint = f"{users_endpoint}{user.get('id')}/posts/"  # Assuming 'id' is the correct key
+                posts_response = requests.get(posts_endpoint, headers=auth_headers)
+                if posts_response.status_code == 200:
+                    posts = posts_response.json().get('items', [])
+                    remote_posts.extend(posts)
+
     template_name = "index.html"
+    return render(request, template_name, {'posts': remote_posts})
 
 
 class FriendPostsView(TemplateView):
@@ -153,8 +183,33 @@ class PPsAPIView(generics.ListAPIView):
     serializer_class = PostSerializer
 
     def get_queryset(self):
-        # Get all public posts，sorted by publication time in descending order
-        return Post.objects.filter(visibility='PUBLIC', is_draft=False).order_by('-date_posted')
+        local_posts = Post.objects.filter(visibility='PUBLIC', is_draft=False).order_by('-date_posted')
+        return local_posts
+
+
+"""
+    def get_remoteposts_self(self) -> list:
+        hosts = Host.objects.filter(allowed=True)
+
+        remote_posts = []
+        for host in hosts:
+            # Authorization Message Header:
+            credentials = base64.b64encode(f'{host.username}:{host.password}'.encode('utf-8')).decode('utf-8')
+            auth_headers = {'Authorization': f'{credentials}'}
+
+            # GET remote `users`:
+            users_endpoint = host.host + 'users/'
+            users_response = requests.get(users_endpoint, headers=auth_headers).json()
+            users_list = users_response.get('items', [])
+
+            for user in users_list:
+                # GET remote `posts` for each user:
+                posts_endpoint = f"{users_endpoint}{user.get('username')}/posts/"
+                posts_response = requests.get(posts_endpoint, headers=auth_headers).json()
+                posts = posts_response.get('items', [])
+                remote_posts.extend(posts)
+        return remote_posts
+"""
 
 
 class FPsAPIView(generics.ListAPIView):
@@ -184,6 +239,7 @@ class FPsAPIView(generics.ListAPIView):
         posts = posts.distinct().order_by('-date_posted')
 
         serializer = PostSerializer(posts, many=True)
+
         return Response(serializer.data)
 
 
@@ -296,7 +352,33 @@ class PostOperationAPIView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_object(self):
         post_id = self.kwargs.get('post_id')
-        return get_object_or_404(Post, pk=post_id)
+        post = get_object_or_404(Post, pk=post_id)
+        user = self.request.user  # get current user
+
+        # Check if the post is public
+        if post.visibility == 'PUBLIC':
+            return post
+        # If the post is friends-only, check if they are friends
+        elif post.visibility == 'FRIENDS':
+            friends = User.objects.filter(
+                Q(friends_set1__user2=post.author) |
+                Q(friends_set2__user1=post.author)
+            ).distinct()
+
+            if user.is_authenticated and (user in friends or user == post.author):
+                return post
+            else:
+                raise PermissionDenied(detail="You do not have permission to view this post.")
+        # If the post is private
+        elif post.visibility == 'PRIVATE':
+            if user == post.author:
+                return post
+            else:
+                raise PermissionDenied(detail="This post is private.")
+
+        raise PermissionDenied(detail="You do not have permission to view this post.")
+
+        # return get_object_or_404(Post, pk=post_id)
 
 
 class CommentAPIView(generics.ListCreateAPIView):
@@ -399,27 +481,40 @@ class SharePostView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, post_id):
-        original_post = get_object_or_404(Post, pk=post_id)
-        original_author_username = original_post.author.username
+        user_comment = request.data.get('text', '')
+        current_user_username = request.user.username
 
-        profile_url = reverse('PAGE_Profile', kwargs={'username': original_author_username})
+        original_post = get_object_or_404(Post, pk=post_id)
+        print(original_post)
+
+        original_author_username = original_post.author.username
+        original_post_url = reverse('PAGE_postDetail', kwargs={'post_id': original_post.id})
 
         if original_post.visibility != 'PUBLIC':
             raise PermissionDenied('This post cannot be shared as it is not public.')
 
         if original_post.shared_post is None:
-            mention_link = f'<a href="{profile_url}">@{original_author_username}</a>'
-            content_with_mention = f"{mention_link}: {original_post.content}"
+            content_with_mention = (
+                f"<a href=\"javascript:void(0);\" onclick=\"userLinkProfile('{request.user.username}');\">@{request.user.username}</a>: {user_comment} //"
+                f"<a href=\"javascript:void(0);\" onclick=\"userLinkProfile('{original_post.author.username}');\">@{original_post.author.username}</a>: {original_post.content} "
+                f"(View original post: <a href=\"{original_post_url}\">here</a>)"
+            )
             repost_title = f"Repost: {original_post.title}"
         else:
-            content_with_mention = original_post.content
+            content_with_mention = (
+                f"<a href=\"javascript:void(0);\" onclick=\"userLinkProfile('{request.user.username}');\">@{request.user.username}</a>: {user_comment} //"
+                f"{original_post.content}"
+            )
             repost_title = original_post.title
+
+        image_data = original_post.image_data
 
         new_post = Post.objects.create(
             author=request.user,
             title=repost_title,
             content=content_with_mention,
-            image_data=original_post.image_data,
+            image_data=image_data,
+            visibility=original_post.visibility,
             shared_post=original_post,
             # Add other necessary fields...
         )
@@ -447,20 +542,6 @@ class SharePostView(APIView):
                 )
 
         return Response({'success': True, 'post_id': new_post.pk}, status=status.HTTP_201_CREATED)
-
-        # elif original_post.visibility == 'FRIENDS':
-        #     # Send the post notification to all friends
-        # friends = User.objects.filter(
-        #     Q(friends_set1__user2=original_post.author) | Q(friends_set2__user1=original_post.author)
-        # ).distinct()
-        # for friend in friends:
-        #     MessageSuper.objects.create(
-        #         owner=friend,
-        #         message_type='NP',  # 'NP' for new post
-        #         content=shared_content,
-        #         origin=request.user.username,
-        #         post=original_post
-        #     )
 
 
 """
@@ -501,7 +582,11 @@ def update_bio(request, username):
     if request.method == 'POST':
         form = UpdateBioForm(request.POST, instance=request.user)
         if form.is_valid():
-            form.save()
+            bio_content = form.cleaned_data.get('bio')
+            if bio_content.strip() == '':
+                form.instance.bio = None
+            else:
+                form.save()
 
     return redirect("PAGE_Profile", username=username)
 
@@ -726,7 +811,6 @@ class CreateFollowingAPIView(APIView):
 
 class AcceptFollowRequestAPIView(APIView):
     def post(self, request, origin_username):
-        print("accept 调用")
         # get current user
         target_user = request.user
         # get request user
@@ -904,83 +988,6 @@ class DeleteIDOfMessageAPIView(APIView):
 ---------------------------------- OpenAPI Settings ----------------------------------
 """
 
-
-class OpenAPIUserAPIView(viewsets.ModelViewSet):
-    queryset = User.objects.all()
-    serializer_class = OpenAPIServerNodeSerializer
-
-
-class OpenAPIView(viewsets.ModelViewSet):
-    queryset = ServerNode.objects.all()
-    serializer_class = OpenAPIServerNodeSerializer
-
-    def list(self, request, *args, **kwargs):
-        json_response = {
-            'our_openapi_instruction': "This is an auto-response that may help you set connection to our OpenAPIs, you "
-                                       "could fetch the OpenAPIs shown below to access specific information about ours.",
-            'our_openapi_url': {
-                'our_host_name': HOSTNAME,
-                'to_add_a_connection_with_us': f'{LOCALHOST}/openapi/',
-                'to_search_a_spec_user': f'{LOCALHOST}/openapi/search/<str:server_node_name>/?q=<str:username>',
-                'to_info_a_spec_user': f'{LOCALHOST}/openapi/message/<str:username>/',
-                'to_get_our_user_list': f'{LOCALHOST}/api/users/',
-            },
-            'our_openapi_method': {
-                'our_host_name': HOSTNAME,
-                'to_add_a_connection_with_us': 'POST, GET',
-                'to_search_a_spec_user': 'GET',
-                'to_info_a_spec_user': 'POST',
-            },
-        }
-
-        return Response(json_response)
-
-    def create(self, request, *args, **kwargs):
-        print(request.data)
-        username = request.data.get('username')
-        password = request.data.get('password')
-        remoteName = str(request.data.get('from'))
-        remoteUsers = str(request.data.get('userAPI'))
-        if not self._checkAccount(username, password):
-            return JsonResponse({'error': 'Invalid credentials'}, status=status.HTTP_400_BAD_REQUEST)
-
-        ServerNode.objects.create(name=remoteName,
-                                  host=remoteName,
-                                  userAPI=remoteUsers)
-        return Response(status=status.HTTP_201_CREATED)
-
-    def _checkAccount(self, username, password):
-        ACCOUNTS = [
-            {'username': 'SD1', 'password': 'SD111'},
-            {'username': 'SD2', 'password': 'SD222'},
-        ]
-        for account in ACCOUNTS:
-            if account['username'] == username and account['password'] == password:
-                return True
-        return False
-
-
-class ServerNodeList(generics.ListAPIView):
-    queryset = ServerNode.objects.all()
-    serializer_class = OpenAPIServerNodeSerializer
-
-
-@api_view(['GET'])
-def getRemoteUsers(request, server_node_name):
-    server_node = get_object_or_404(ServerNode, name=server_node_name)
-    print(server_node)
-
-    try:
-        response = requests.get(server_node.userAPI, timeout=10)
-        response.raise_for_status()
-        users = response.json()
-        serializer = UserSerializer(users, many=True)
-
-        return Response(serializer.data)
-    except Exception as e:
-        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
 def getRemoteUserAPIS(request, server_node_name, username):
     remoteUser = get_object_or_404(User, username=username)
     urls = {
@@ -1003,10 +1010,9 @@ def searchUserOPENAPI(request, server_node_name, remoteUsername):
         return JsonResponse({'error': 'User not found'}, status=404)
 
 
-
 class CreateLocalProjUser(APIView):
     def post(self, request, format=None):
-        print("request.data ---> ",request.data) 
+        print("request.data ---> ", request.data)
         base_username = request.data.get('username')
         email = request.data.get('email')
         bio = request.data.get('bio')
@@ -1016,21 +1022,21 @@ class CreateLocalProjUser(APIView):
         remoteFollowAPI = request.data.get('remoteFollowAPI')
         unique_username = f"{server_node_name}.{base_username}"
 
-        
         print(unique_username)
         # 检查是否已经存在具有相同节点和用户名组合的用户
         if User.objects.filter(server_node_name=server_node_name, username=username).exists():
-            return Response({'error': 'User with the same node and username combination already exists.'}, status=status.HTTP_400_BAD_REQUEST)
-        
+            return Response({'error': 'User with the same node and username combination already exists.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
         serializer = UserSerializer(data=request.data)
         print("serializer.is_valid():", serializer.is_valid())
         print("serializer.errors:", serializer.errors)
 
         if serializer.is_valid():
-            
             user = serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 # def generate_unique_username(server_node_name, base_username):
 #     # Generate a unique identifier (UUID)
@@ -1102,6 +1108,7 @@ class RejectRemoteFollowRequestOPENAPIView(APIView):
 class PublicFriendsPostsListOPENView(generics.ListAPIView):
     serializer_class = PostSerializer
     permission_classes = [IsAuthenticated]
+
     def get_queryset(self):
         username = self.kwargs['username']
         user = get_object_or_404(User, username=username)

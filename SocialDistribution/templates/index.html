@@ -28,7 +28,9 @@
 
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
-    <script src="{% static 'js/index.js' %}"></script>
+    <script type="module" src="{% static 'js/index.js' %}">  
+        var remotePosts = {{ posts|safe }};
+    </script>
     <script src="{% static 'js/posting.js' %}"></script>
     <script src="{% static 'js/search.js' %}"></script>
 </body>

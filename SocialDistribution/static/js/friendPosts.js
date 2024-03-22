@@ -4,7 +4,7 @@
 document.addEventListener('DOMContentLoaded', async () => {
     const username = _getURLUsername()
 
-    await _checkRemoteFriends(username);
+    //await _checkRemoteFriends(username);
 
     fetch(`/api/fps/${username}/`)
         .then(response => response.json())
@@ -38,6 +38,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <div class="content">
                         <div class="title">${post.title}</div>
                         <p class="post-content">${post.content}</p>
+                        ${createImagesHTML(post.image_data)}
                     </div>
                 `;
 
@@ -76,7 +77,7 @@ function _getURLUsername() {
     return pathSections[2];
 }
 
-
+/*
 async function _getRemoteUserOPENAPIS(serverNodeName, username) {
     const encodedServerNodeName = encodeURIComponent(serverNodeName);
     const encodedUsername = encodeURIComponent(username);
@@ -133,21 +134,21 @@ async function _checkRemoteFriends(username) {
 
 
 function fetchNonPrivatePostsAndCreateNew(url, username) {
-  fetch(url)
-    .then(response => {
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-      return response.json();
-    })
-    .then(posts => {
-      posts.forEach(post => {
-        _createNewPost(post);
-      });
-    })
-    .catch(error => {
-      console.error('There has been a problem with your fetch operation:', error);
-    });
+    fetch(url)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(posts => {
+            posts.forEach(post => {
+                _createNewPost(post);
+            });
+        })
+        .catch(error => {
+            console.error('There has been a problem with your fetch operation:', error);
+        });
 }
 
 function _createNewPost(postData) {
@@ -168,6 +169,21 @@ function _createNewPost(postData) {
         .catch(error => {
             console.error('Error creating new post:', error);
         });
+}*/
+
+function createImagesHTML(imageDataString) {
+    if (!imageDataString) return '';
+
+    const imageDataArray = imageDataString.split(",");
+    let imagesHTML = '';
+
+    for (let i = 1; i < imageDataArray.length; i += 2) {
+        let base64Data = imageDataArray[i];
+        if (base64Data.trim()) {
+            imagesHTML += `<img src="data:image/jpeg;base64,${base64Data}" class="post-image" style="max-width: 100%; height: auto;">`;
+        }
+    }
+    return imagesHTML;
 }
 
 

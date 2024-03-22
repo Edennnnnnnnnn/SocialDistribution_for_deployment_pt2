@@ -439,7 +439,7 @@ function showImage() {
             throw new Error('Network response was not ok');
         }
         return response.json(); 
-    })
+    })      
     .then(data => {
         // process data
         var imageDataString = data.image_data; // get image_data string
