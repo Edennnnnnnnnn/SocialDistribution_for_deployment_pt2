@@ -1228,7 +1228,10 @@ def authenticate_host(encoded_credentials):
         print(">> password", password)
         hosts = Host.objects.filter(name="SELF")
         for host in hosts:
-            if host.username == username and check_password(password, host.password):
+            print(host)
+            print("host.username", host.username, "/ username", username)
+            print("host.password", host.password, "/ password", password)
+            if host.username == username and host.password == password:
                 return True
         return False
     except (ValueError, TypeError, IndexError):
