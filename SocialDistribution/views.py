@@ -156,11 +156,15 @@ def indexView(request):
             print("users_endpoint", users_endpoint)
             print("users_response", users_response)
             if users_response.status_code == 200:
-                users_list = users_response.json().get('items', [])
+                print("users_response", users_response)
 
-                for user in users_list:
+                for user in users_response:
+                    print("user", user)
                     # GET remote `posts` for each user:
-                    posts_endpoint = f"{users_endpoint}{user.get('id')}/posts/"  # Assuming 'id' is the correct key
+                    posts_endpoint = f"{users_endpoint}{user.get('username')}/posts/"
+                    print("user", user)
+                    print("user.get('username')", user.get('username'))
+                    print("posts_endpoint", posts_endpoint)
                     posts_response = requests.get(posts_endpoint, headers=auth_headers)
                     if posts_response.status_code == 200:
                         posts = posts_response.json().get('items', [])
