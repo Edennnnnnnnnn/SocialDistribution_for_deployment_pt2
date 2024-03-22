@@ -81,8 +81,8 @@ urlpatterns = [
     path('api/msgs/deleteID/<int:ID>/', DeleteIDOfMessageAPIView.as_view(), name='API_DELETEMsgID'),
 
     # New NTN System:
-    path("users/", UsersAPIView.as_view({'get': 'list'}), name="GET-USERS-LIST"),
-    path('users/<str:username>/posts/', ProfileAPIView.as_view(), name='GET-USER-POST'),
+    path("users/", UsersOpenEndPt.as_view({'get': 'list'}), name="OPEN_GETUsersList"),
+    path('users/<str:username>/posts/', UserPostsOpenEndPt.as_view(), name='OPEN_GETUserPostsList'),
 ]
 
 # OpenAPI System:

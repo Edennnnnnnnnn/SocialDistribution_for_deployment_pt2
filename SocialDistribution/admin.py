@@ -14,18 +14,13 @@ class UserAdmin(admin.ModelAdmin):
         'recent_processed_activity',
         'is_approved',
         'avatar_url',
-        'server_node_name',
-        'remoteOpenapi',
-        'remoteInboxAPI',
-        'remoteFollowAPI',
     )
     search_fields = (
         'username',
         'email',
         'github_username',
-        'server_node_name',
     )
-    list_filter = ('is_approved', 'server_node_name',)
+    list_filter = ('is_approved',)
     ordering = ('-date_joined',)
 
 

@@ -1,4 +1,6 @@
-# Traditional Pattern:
+# django Pattern:
+from urllib import request
+from django.contrib.auth.hashers import check_password
 from django.http import HttpResponseForbidden
 from functools import wraps
 from django.contrib.auth.decorators import login_required
@@ -39,8 +41,8 @@ from .permissions import IsAuthorOrReadOnly
 from .models import *
 
 User = get_user_model()
-HOSTNAME = "eden1"
-LOCALHOST = "https://socialdistrib-server-eden-1ad4ce294a84.herokuapp.com/"
+HOSTNAME = "A"
+LOCALHOST = "http://127.0.0.1:8000"
 
 """
 ---------------------------------- Signup/Login Settings ----------------------------------
@@ -133,12 +135,8 @@ class PostDetailView(DetailView):
             return super().render_to_response(context, **response_kwargs)
 
 
-from django.shortcuts import render
-import requests
-import base64
-
-
 def indexView(request):
+    # CCC
     """ * [GET] Get The Home Page """
     remote_posts = []
     try:
@@ -147,13 +145,13 @@ def indexView(request):
             # Authorization Message Header:
             credentials = base64.b64encode(f'{host.username}:{host.password}'.encode('utf-8')).decode('utf-8')
             auth_headers = {'Authorization': f'Basic {credentials}'}
-            
+
             # GET remote `users`:
             users_endpoint = host.host + 'users/'
             users_response = requests.get(users_endpoint, headers=auth_headers)
             if users_response.status_code == 200:
                 users_list = users_response.json().get('items', [])
-                
+
                 for user in users_list:
                     # GET remote `posts` for each user:
                     posts_endpoint = f"{users_endpoint}{user.get('id')}/posts/"  # Assuming 'id' is the correct key
@@ -182,33 +180,7 @@ class PPsAPIView(generics.ListAPIView):
     serializer_class = PostSerializer
 
     def get_queryset(self):
-        local_posts = Post.objects.filter(visibility='PUBLIC', is_draft=False).order_by('-date_posted')
-        return local_posts
-
-
-"""
-    def get_remoteposts_self(self) -> list:
-        hosts = Host.objects.filter(allowed=True)
-
-        remote_posts = []
-        for host in hosts:
-            # Authorization Message Header:
-            credentials = base64.b64encode(f'{host.username}:{host.password}'.encode('utf-8')).decode('utf-8')
-            auth_headers = {'Authorization': f'{credentials}'}
-
-            # GET remote `users`:
-            users_endpoint = host.host + 'users/'
-            users_response = requests.get(users_endpoint, headers=auth_headers).json()
-            users_list = users_response.get('items', [])
-
-            for user in users_list:
-                # GET remote `posts` for each user:
-                posts_endpoint = f"{users_endpoint}{user.get('username')}/posts/"
-                posts_response = requests.get(posts_endpoint, headers=auth_headers).json()
-                posts = posts_response.get('items', [])
-                remote_posts.extend(posts)
-        return remote_posts
-"""
+        return Post.objects.filter(visibility='PUBLIC', is_draft=False).order_by('-date_posted')
 
 
 class FPsAPIView(generics.ListAPIView):
@@ -238,7 +210,6 @@ class FPsAPIView(generics.ListAPIView):
         posts = posts.distinct().order_by('-date_posted')
 
         serializer = PostSerializer(posts, many=True)
-
         return Response(serializer.data)
 
 
@@ -434,7 +405,6 @@ class CommentAPIView(generics.ListCreateAPIView):
 class LikeAPIView(generics.ListCreateAPIView):
     """ [GET/POST] Get The LikeList For A Spec-post; Create A Like For A Spec-post """
     serializer_class = LikeSerializer
-
     # def get_queryset(self):
     #     return get_list_or_404(Like, post_id=self.kwargs['post_id'])
 
@@ -1101,9 +1071,8 @@ class CreateLocalProjUser(APIView):
         print(unique_username)
         # 检查是否已经存在具有相同节点和用户名组合的用户
         if User.objects.filter(server_node_name=server_node_name, username=username).exists():
-            return Response({'error': 'User with the same node and username combination already exists.'},
-                            status=status.HTTP_400_BAD_REQUEST)
-
+            return Response({'error': 'User with the same node and username combination already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+        
         serializer = UserSerializer(data=request.data)
         print("serializer.is_valid():", serializer.is_valid())
         print("serializer.errors:", serializer.errors)
@@ -1112,7 +1081,6 @@ class CreateLocalProjUser(APIView):
             user = serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 # def generate_unique_username(server_node_name, base_username):
 #     # Generate a unique identifier (UUID)
@@ -1192,4 +1160,53 @@ class PublicFriendsPostsListOPENView(generics.ListAPIView):
             Q(author=user),
             ~Q(visibility='PRIVATE')
         ).order_by('-date_posted')
-    
+
+
+class UsersOpenEndPt(viewsets.ModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+
+    def list(self, request, *args, **kwargs):
+        auth_header = request.headers.get('Authorization')
+        if auth_header:
+            parts = auth_header.split(' ', 1)
+            if len(parts) == 2 and parts[0].lower() == 'basic':
+                if authenticate_host(parts[1]):
+                    return super().list(request, *args, **kwargs)
+        return Response(status=status.HTTP_401_UNAUTHORIZED)
+
+
+class UserPostsOpenEndPt(APIView):
+    def get(self, request, username):
+        auth_header = request.headers.get('Authorization')
+        if auth_header:
+            parts = auth_header.split(' ', 1)
+            if len(parts) == 2 and parts[0].lower() == 'basic':
+                if authenticate_host(parts[1]):
+                    target_user = get_object_or_404(User, username=username)
+                    posts = Post.objects.filter(author=target_user, is_draft=False).order_by('-date_posted')
+                    user_serializer = UserSerializer(target_user)
+                    posts_serializer = PostSerializer(posts, many=True)
+                    return Response({
+                        'user': user_serializer.data,
+                        'posts': posts_serializer.data
+                    })
+        return Response(status=status.HTTP_401_UNAUTHORIZED)
+
+
+""" HELPER FUNC """
+def authenticate_host(encoded_credentials):
+    try:
+        decoded_bytes = base64.b64decode(encoded_credentials)
+        decoded_credentials = decoded_bytes.decode('utf-8')
+        username, password = decoded_credentials.split(':', 1)
+        hosts = Host.objects.filter(name="self")
+        for host in hosts:
+            if host.username == username and check_password(password, host.password):
+                return True
+        return False
+    except (ValueError, TypeError, IndexError):
+        return False
+
+
+
