@@ -140,30 +140,29 @@ import base64
 
 def indexView(request):
     """ * [GET] Get The Home Page """
-
-    # Assuming Host model exists and has fields: host, username, password, allowed
-    hosts = Host.objects.filter(allowed=True)
-
     remote_posts = []
-    for host in hosts:
-        # Authorization Message Header:
-        credentials = base64.b64encode(f'{host.username}:{host.password}'.encode('utf-8')).decode('utf-8')
-        auth_headers = {'Authorization': f'Basic {credentials}'}
-
-        # GET remote `users`:
-        users_endpoint = host.host + 'users/'
-        users_response = requests.get(users_endpoint, headers=auth_headers)
-        if users_response.status_code == 200:
-            users_list = users_response.json().get('items', [])
-
-            for user in users_list:
-                # GET remote `posts` for each user:
-                posts_endpoint = f"{users_endpoint}{user.get('id')}/posts/"  # Assuming 'id' is the correct key
-                posts_response = requests.get(posts_endpoint, headers=auth_headers)
-                if posts_response.status_code == 200:
-                    posts = posts_response.json().get('items', [])
-                    remote_posts.extend(posts)
-
+    try:
+        hosts = Host.objects.filter(allowed=True)
+        for host in hosts:
+            # Authorization Message Header:
+            credentials = base64.b64encode(f'{host.username}:{host.password}'.encode('utf-8')).decode('utf-8')
+            auth_headers = {'Authorization': f'Basic {credentials}'}
+            
+            # GET remote `users`:
+            users_endpoint = host.host + 'users/'
+            users_response = requests.get(users_endpoint, headers=auth_headers)
+            if users_response.status_code == 200:
+                users_list = users_response.json().get('items', [])
+                
+                for user in users_list:
+                    # GET remote `posts` for each user:
+                    posts_endpoint = f"{users_endpoint}{user.get('id')}/posts/"  # Assuming 'id' is the correct key
+                    posts_response = requests.get(posts_endpoint, headers=auth_headers)
+                    if posts_response.status_code == 200:
+                        posts = posts_response.json().get('items', [])
+                        remote_posts.extend(posts)
+    except:
+        pass
     template_name = "index.html"
     return render(request, template_name, {'posts': remote_posts})
 
