@@ -148,7 +148,7 @@ def indexView(request):
             auth_headers = {'Authorization': f'Basic {credentials}'}
             print("auth_headers", auth_headers)
 
-            authenticate_host(credentials)
+            #authenticate_host(credentials)
 
             # GET remote `users`:
             users_endpoint = host.host + 'users/'
@@ -156,23 +156,21 @@ def indexView(request):
             print("users_endpoint", users_endpoint)
             print("users_response", users_response)
             if users_response.status_code == 200:
-                print("users_response", users_response)
-
-                for user in users_response:
-                    print("user", user)
+                for user in users_response.json():
+                    print("\nuser", user)
                     # GET remote `posts` for each user:
                     posts_endpoint = f"{users_endpoint}{user.get('username')}/posts/"
-                    print("user", user)
                     print("user.get('username')", user.get('username'))
                     print("posts_endpoint", posts_endpoint)
                     posts_response = requests.get(posts_endpoint, headers=auth_headers)
                     if posts_response.status_code == 200:
-                        posts = posts_response.json().get('items', [])
+                        posts = remove_bool_none_values(posts_response.json().get('posts'))
+                        print("\n>> post", posts)
                         remote_posts.extend(posts)
     except:
         pass
     template_name = "index.html"
-    print("posts", remote_posts)
+    print("\n** posts", remote_posts)
     return render(request, template_name, {'posts': remote_posts})
 
 
@@ -1179,18 +1177,12 @@ class UsersOpenEndPt(viewsets.ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         auth_header = request.headers.get('Authorization')
-        print("auth_header", auth_header)
         if auth_header:
             parts = auth_header.split(' ', 1)
-            print("parts", parts)
-            print("len(parts)", len(parts))
-            print("parts[0].lower()", parts[0].lower())
             if len(parts) == 2 and parts[0].lower() == 'basic':
                 print("A")
-                print("authenticate_host(parts[1])", authenticate_host(parts[1]))
                 if authenticate_host(parts[1]):
                     print("B")
-                    print("super().list(request, *args, **kwargs)", super().list(request, *args, **kwargs))
                     return super().list(request, *args, **kwargs)
         return Response(status=status.HTTP_401_UNAUTHORIZED)
 
@@ -1205,10 +1197,10 @@ class UserPostsOpenEndPt(APIView):
             print("len(parts)", len(parts))
             print("parts[0].lower()", parts[0].lower())
             if len(parts) == 2 and parts[0].lower() == 'basic':
-                print("A")
+                print("C")
                 print("authenticate_host(parts[1])", authenticate_host(parts[1]))
                 if authenticate_host(parts[1]):
-                    print("B")
+                    print("D")
                     target_user = get_object_or_404(User, username=username)
                     posts = Post.objects.filter(author=target_user, is_draft=False).order_by('-date_posted')
                     user_serializer = UserSerializer(target_user)
@@ -1241,5 +1233,11 @@ def authenticate_host(encoded_credentials):
     except (ValueError, TypeError, IndexError):
         return False
 
+def remove_bool_none_values(posts):
+    filtered_posts = []
+    for post in posts:
+        filtered_post = {k: v for k, v in post.items() if not isinstance(v, (bool, type(None)))}
+        filtered_posts.append(filtered_post)
+    return filtered_posts
 
 
