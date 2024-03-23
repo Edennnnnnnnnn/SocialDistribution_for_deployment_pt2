@@ -1214,11 +1214,14 @@ def authenticate_host(encoded_credentials):
         decoded_bytes = base64.b64decode(encoded_credentials)
         decoded_credentials = decoded_bytes.decode('utf-8')
         username, password = decoded_credentials.split(':', 1)
+        print(f"username={username}")
+        print(f"password={password}")
         hosts = Host.objects.filter(name="SELF")
+        print("* ALL hosts", hosts)
         for host in hosts:
             print("host", host)
             print(f"host.username={host.username} / username={username}")
-            print(f"host.password={host.password} / username={password}")
+            print(f"host.password={host.password} / password={password}")
             if host.username == username and host.password == password:
                 return True
         return False
