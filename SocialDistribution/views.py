@@ -143,6 +143,8 @@ def indexView(request):
     try:
         hosts = Host.objects.filter(allowed=True)
         for host in hosts:
+            if host.name == "SELF":
+                break
             # Authorization Message Header:
             credentials = base64.b64encode(f'{host.username}:{host.password}'.encode('utf-8')).decode('utf-8')
             auth_headers = {'Authorization': f'Basic {credentials}'}
