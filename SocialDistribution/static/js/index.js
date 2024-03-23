@@ -3,6 +3,11 @@
 import {formatDate} from "./common.js";
 
 document.addEventListener('DOMContentLoaded', () => {
+    let postContainerDiv = document.createElement('div');
+    postContainerDiv.className = 'post-container';
+    postContainerDiv.id = 'post-container';
+    document.body.appendChild(postContainerDiv);
+
     fetch('/api/pps/')
         .then(response => response.json())
         .then(posts => {
