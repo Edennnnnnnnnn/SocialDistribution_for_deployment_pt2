@@ -160,6 +160,7 @@ def indexView(request):
     except:
         pass
     template_name = "index.html"
+    time.sleep(2)
     return render(request, template_name, {'posts': remote_posts})
 
 
