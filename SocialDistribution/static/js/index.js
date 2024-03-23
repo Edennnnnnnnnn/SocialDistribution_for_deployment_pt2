@@ -70,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
         .catch(error => console.error('Error:', error));
 })
 
-export function createRemotePostBlocks(remotePosts) {
+export function createRemotePostBlocks_self(remotePosts) {
     console.log("@ remotePosts", remotePosts);
     const postContainer = document.getElementById('post-container');
     remotePosts.forEach(post => {
@@ -108,6 +108,47 @@ export function createRemotePostBlocks(remotePosts) {
         postContainer.appendChild(postElement);
     });
 }
+
+
+export function createRemotePostBlocks_enjoy(remotePosts) {
+    console.log("@ remotePosts", remotePosts);
+    const postContainer = document.getElementById('post-container');
+    remotePosts.forEach(post => {
+        const postElement = document.createElement('div');
+        postElement.className = 'post';
+
+        const postLink = document.createElement('a');
+        postLink.href = `/posts/remote/${post.author.displayName}/${post.user}`;
+        postLink.className = 'post-link';
+
+        const datePosted = new Date(post.published);
+        const formattedDate = formatDate(datePosted);
+
+        const userInfoHTML = `
+            <div class="user-info">
+                <img src="${post.avatar}" alt="profile avatar" class="user-avatar">
+                <div class="username">${post.author.displayName || 'Unknown User'}</div>
+                <div class="post-time">${formattedDate}</div>
+                <div class="corner-icon">
+                    ${post.content_type === 'COMMONMARK' ? '<ion-icon name="logo-markdown"></ion-icon>' : ''}
+                </div>
+            </div>
+        `;
+
+        const contentHTML = `
+            <div class="content">
+                <div class="title">${post.title}</div>
+                <p class="post-content">${post.content}</p>
+                ${createImagesHTML(post.image_data)}
+            </div>
+        `;
+
+        postLink.innerHTML = userInfoHTML + contentHTML;
+        postElement.appendChild(postLink);
+        postContainer.appendChild(postElement);
+    });
+}
+
 
 
 function createImagesHTML(imageDataString) {

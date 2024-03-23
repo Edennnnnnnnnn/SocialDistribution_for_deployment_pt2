@@ -83,6 +83,7 @@ urlpatterns = [
     # New NTN System:
     path("users/", UsersOpenEndPt.as_view({'get': 'list'}), name="OPEN_GETUsersList"),
     path('users/<str:username>/posts/', UserPostsOpenEndPt.as_view(), name='OPEN_GETUserPostsList'),
+    path("api/users/", UsersAPIView.as_view({'get': 'list'}), name="API_ALL_USER"),
 ]
 
 # OpenAPI System:
@@ -96,7 +97,7 @@ path('openapi/userposts/<str:username>/', PublicFriendsPostsListOPENView, name='
 path('openapi/accept-remote-follow/<str:nodename>/<str:localUsername>/<str:remoteUsername>/', AcceptRemoteFollowRequestOPENAPIView, name='OPENAPI_AcceptFollowRequest'),
 path('openapi/reject-remote-follow/<str:nodename>/<str:localUsername>/<str:remoteUsername>/', RejectRemoteFollowRequestOPENAPIView, name='OPENAPI_RejectFollowRequest'),
 
-path("api/users/", UsersAPIView.as_view({'get': 'list'}), name=".lAPI_ALL_USER"),
+
 path('api/servernodes/', ServerNodeList.as_view(), name='nodeList'),
 path('api/getRemoteUserOPENAPIS/<str:server_node_name>/<str:username>/', views.getRemoteUserAPIS, name='API_GETRemoteUserAPIS'),
 path('api/createLocalProjUser/', CreateLocalProjUser.as_view(), name='API_POSTLocalProjUser'),

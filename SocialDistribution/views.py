@@ -145,30 +145,50 @@ def indexView(request):
         for host in hosts:
             if host.name == "SELF" and host.allowed:
                 continue
-            # Authorization Message Header:
-            credentials = base64.b64encode(f'{host.username}:{host.password}'.encode('utf-8')).decode('utf-8')
-            auth_headers = {'Authorization': f'Basic {credentials}'}
-            print("auth_headers", auth_headers)
+            if host.name == "enjoy":
+                users_endpoint = host.host + 'authors/'
+                users_response = requests.get(users_endpoint, timeout=10)
+                print("users_endpoint", users_endpoint)
+                print("users_response", users_response)
+                if users_response.status_code == 200:
+                    print("users_response", users_response)
+                    print("users_response.json().get()", users_response.json().get("items"))
+                    for user in users_response.json().get("items"):
+                        print("\nauthors", user)
+                        # GET remote `posts` for each user:
+                        posts_endpoint = f"{user.get('id')}/posts/"
+                        print("user.get('id')", user.get('id'))
+                        print("posts_endpoint", posts_endpoint)
+                        posts_response = requests.get(posts_endpoint, timeout=10)
+                        if posts_response.status_code == 200:
+                            posts = remove_bool_none_values(posts_response.json())
+                            print("\n>> post", posts)
+                            remote_posts.extend(posts)
+            else:
+                # Authorization Message Header:
+                credentials = base64.b64encode(f'{host.username}:{host.password}'.encode('utf-8')).decode('utf-8')
+                auth_headers = {'Authorization': f'Basic {credentials}'}
+                print("auth_headers", auth_headers)
 
-            authenticate_host(credentials)
+                authenticate_host(credentials)
 
-            # GET remote `users`:
-            users_endpoint = host.host + 'users/'
-            users_response = requests.get(users_endpoint, headers=auth_headers, timeout=10)
-            print("users_endpoint", users_endpoint)
-            print("users_response", users_response)
-            if users_response.status_code == 200:
-                for user in users_response.json():
-                    print("\nuser", user)
-                    # GET remote `posts` for each user:
-                    posts_endpoint = f"{users_endpoint}{user.get('username')}/posts/"
-                    print("user.get('username')", user.get('username'))
-                    print("posts_endpoint", posts_endpoint)
-                    posts_response = requests.get(posts_endpoint, headers=auth_headers, timeout=10)
-                    if posts_response.status_code == 200:
-                        posts = remove_bool_none_values(posts_response.json().get('posts'))
-                        print("\n>> post", posts)
-                        remote_posts.extend(posts)
+                # GET remote `users`:
+                users_endpoint = host.host + 'users/'
+                users_response = requests.get(users_endpoint, headers=auth_headers, timeout=10)
+                print("users_endpoint", users_endpoint)
+                print("users_response", users_response)
+                if users_response.status_code == 200:
+                    for user in users_response.json():
+                        print("\nuser", user)
+                        # GET remote `posts` for each user:
+                        posts_endpoint = f"{users_endpoint}{user.get('username')}/posts/"
+                        print("user.get('username')", user.get('username'))
+                        print("posts_endpoint", posts_endpoint)
+                        posts_response = requests.get(posts_endpoint, headers=auth_headers, timeout=10)
+                        if posts_response.status_code == 200:
+                            posts = remove_bool_none_values(posts_response.json().get('posts'))
+                            print("\n>> post", posts)
+                            remote_posts.extend(posts)
     except:
         pass
     template_name = "index.html"
@@ -1237,11 +1257,15 @@ def authenticate_host(encoded_credentials):
         return False
 
 
+def remove_unwanted_values(data):
+    if isinstance(data, dict):
+        return {k: remove_unwanted_values(v) for k, v in data.items() if v is not None and not isinstance(v, bool)}
+    elif isinstance(data, list):
+        return [remove_unwanted_values(item) for item in data]
+    else:
+        return data
+
 def remove_bool_none_values(posts):
-    filtered_posts = []
-    for post in posts:
-        filtered_post = {k: v for k, v in post.items() if not isinstance(v, (bool, type(None)))}
-        filtered_posts.append(filtered_post)
-    return filtered_posts
+    return [remove_unwanted_values(post) for post in posts]
 
 
