@@ -145,23 +145,35 @@ def indexView(request):
             if host.name == "SELF":
                 break
             # Authorization Message Header:
+            print("A")
+            print("\nhost", host)
             credentials = base64.b64encode(f'{host.username}:{host.password}'.encode('utf-8')).decode('utf-8')
             auth_headers = {'Authorization': f'Basic {credentials}'}
+            print("credentials", credentials)
 
             # GET remote `users`:
             users_endpoint = host.host + 'users/'
             users_response = requests.get(users_endpoint, headers=auth_headers, timeout=10)
+            print("users_endpoint", users_endpoint)
+            print("users_response", users_response)
             if users_response.status_code == 200:
+                print("B")
                 for user in users_response.json():
+                    print("\nuser", user)
                     # GET remote `posts` for each user:
                     posts_endpoint = f"{users_endpoint}{user.get('username')}/posts/"
                     posts_response = requests.get(posts_endpoint, headers=auth_headers, timeout=10)
+                    print("posts_endpoint", posts_endpoint)
+                    print("posts_response", posts_response)
                     if posts_response.status_code == 200:
+                        print("C")
                         posts = remove_bool_none_values(posts_response.json().get('posts'))
+                        print("postsIN", posts)
                         remote_posts.extend(posts)
     except:
         pass
     template_name = "index.html"
+    print("\n* ALL remote_posts", remote_posts)
     return render(request, template_name, {'posts': remote_posts})
 
 
