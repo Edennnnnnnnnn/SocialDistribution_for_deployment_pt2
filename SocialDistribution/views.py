@@ -148,11 +148,11 @@ def indexView(request):
             auth_headers = {'Authorization': f'Basic {credentials}'}
             print("auth_headers", auth_headers)
 
-            #authenticate_host(credentials)
+            authenticate_host(credentials)
 
             # GET remote `users`:
             users_endpoint = host.host + 'users/'
-            users_response = requests.get(users_endpoint, headers=auth_headers)
+            users_response = requests.get(users_endpoint, headers=auth_headers, timeout=10)
             print("users_endpoint", users_endpoint)
             print("users_response", users_response)
             if users_response.status_code == 200:
@@ -162,7 +162,7 @@ def indexView(request):
                     posts_endpoint = f"{users_endpoint}{user.get('username')}/posts/"
                     print("user.get('username')", user.get('username'))
                     print("posts_endpoint", posts_endpoint)
-                    posts_response = requests.get(posts_endpoint, headers=auth_headers)
+                    posts_response = requests.get(posts_endpoint, headers=auth_headers, timeout=10)
                     if posts_response.status_code == 200:
                         posts = remove_bool_none_values(posts_response.json().get('posts'))
                         print("\n>> post", posts)
@@ -1224,7 +1224,8 @@ def authenticate_host(encoded_credentials):
         print(">> password", password)
         hosts = Host.objects.filter(name="SELF")
         for host in hosts:
-            print(host)
+            if host.name == "SELF":
+                continue
             print("host.username", host.username, "/ username", username)
             print("host.password", host.password, "/ password", password)
             if host.username == username and host.password == password:
