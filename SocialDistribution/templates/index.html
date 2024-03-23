@@ -15,7 +15,6 @@
         import {createRemotePostBlocks} from '{% static 'js/index.js' %}';
         var remotePosts = {{ posts|safe }};
         createRemotePostBlocks(remotePosts);
-        setInterval(createRemotePostBlocks(remotePosts), 30000);
     </script>
 </head>
 
