@@ -153,7 +153,7 @@ def indexView(request):
 
             # GET remote `users`:
             users_endpoint = host.host + 'users/'
-            users_response = requests.get(users_endpoint, headers=auth_headers, timeout=10)
+            users_response = requests.get(users_endpoint, headers=auth_headers)
             print("users_endpoint", users_endpoint)
             print("users_response", users_response)
             if users_response.status_code == 200:
@@ -162,7 +162,7 @@ def indexView(request):
                     print("\nuser", user)
                     # GET remote `posts` for each user:
                     posts_endpoint = f"{users_endpoint}{user.get('username')}/posts/"
-                    posts_response = requests.get(posts_endpoint, headers=auth_headers, timeout=10)
+                    posts_response = requests.get(posts_endpoint, headers=auth_headers)
                     print("posts_endpoint", posts_endpoint)
                     print("posts_response", posts_response)
                     if posts_response.status_code == 200:
