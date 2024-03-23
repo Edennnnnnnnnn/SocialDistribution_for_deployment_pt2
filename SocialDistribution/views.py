@@ -141,36 +141,25 @@ def indexView(request):
     remote_posts = []
     try:
         hosts = Host.objects.filter(allowed=True)
-        print("hosts", hosts)
         for host in hosts:
             # Authorization Message Header:
             credentials = base64.b64encode(f'{host.username}:{host.password}'.encode('utf-8')).decode('utf-8')
             auth_headers = {'Authorization': f'Basic {credentials}'}
-            print("auth_headers", auth_headers)
-
-            #authenticate_host(credentials)
 
             # GET remote `users`:
             users_endpoint = host.host + 'users/'
             users_response = requests.get(users_endpoint, headers=auth_headers)
-            print("users_endpoint", users_endpoint)
-            print("users_response", users_response)
             if users_response.status_code == 200:
                 for user in users_response.json():
-                    print("\nuser", user)
                     # GET remote `posts` for each user:
                     posts_endpoint = f"{users_endpoint}{user.get('username')}/posts/"
-                    print("user.get('username')", user.get('username'))
-                    print("posts_endpoint", posts_endpoint)
                     posts_response = requests.get(posts_endpoint, headers=auth_headers)
                     if posts_response.status_code == 200:
                         posts = remove_bool_none_values(posts_response.json().get('posts'))
-                        print("\n>> post", posts)
                         remote_posts.extend(posts)
     except:
         pass
     template_name = "index.html"
-    print("\n** posts", remote_posts)
     return render(request, template_name, {'posts': remote_posts})
 
 
@@ -1180,9 +1169,7 @@ class UsersOpenEndPt(viewsets.ModelViewSet):
         if auth_header:
             parts = auth_header.split(' ', 1)
             if len(parts) == 2 and parts[0].lower() == 'basic':
-                print("A")
                 if authenticate_host(parts[1]):
-                    print("B")
                     return super().list(request, *args, **kwargs)
         return Response(status=status.HTTP_401_UNAUTHORIZED)
 
@@ -1190,23 +1177,14 @@ class UsersOpenEndPt(viewsets.ModelViewSet):
 class UserPostsOpenEndPt(APIView):
     def get(self, request, username):
         auth_header = request.headers.get('Authorization')
-        print("auth_header", auth_header)
         if auth_header:
             parts = auth_header.split(' ', 1)
-            print("parts", parts)
-            print("len(parts)", len(parts))
-            print("parts[0].lower()", parts[0].lower())
             if len(parts) == 2 and parts[0].lower() == 'basic':
-                print("C")
-                print("authenticate_host(parts[1])", authenticate_host(parts[1]))
                 if authenticate_host(parts[1]):
-                    print("D")
                     target_user = get_object_or_404(User, username=username)
                     posts = Post.objects.filter(author=target_user, is_draft=False).order_by('-date_posted')
                     user_serializer = UserSerializer(target_user)
                     posts_serializer = PostSerializer(posts, many=True)
-                    print("user", user_serializer.data)
-                    print("posts", posts_serializer.data)
                     return Response({
                         'user': user_serializer.data,
                         'posts': posts_serializer.data
@@ -1220,13 +1198,8 @@ def authenticate_host(encoded_credentials):
         decoded_bytes = base64.b64decode(encoded_credentials)
         decoded_credentials = decoded_bytes.decode('utf-8')
         username, password = decoded_credentials.split(':', 1)
-        print(">> username", username)
-        print(">> password", password)
         hosts = Host.objects.filter(name="SELF")
         for host in hosts:
-            print(host)
-            print("host.username", host.username, "/ username", username)
-            print("host.password", host.password, "/ password", password)
             if host.username == username and host.password == password:
                 return True
         return False

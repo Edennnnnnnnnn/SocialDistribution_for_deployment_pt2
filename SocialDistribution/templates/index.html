@@ -14,8 +14,8 @@
     <script type="module">
         import {createRemotePostBlocks} from '{% static 'js/index.js' %}';
         var remotePosts = {{ posts|safe }};
-    createRemotePostBlocks(remotePosts);
-</script>
+        createRemotePostBlocks(remotePosts);
+    </script>
 </head>
 
 <body>
@@ -24,6 +24,7 @@
 {% include 'postListContent.html' %}
 
 {% if user.is_approved %}
+    <div class="post-container" id="post-container">
     <button id="floating-button">+</button>
 {% endif %}
 
