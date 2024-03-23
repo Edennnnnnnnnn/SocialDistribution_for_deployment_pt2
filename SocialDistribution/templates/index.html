@@ -11,6 +11,12 @@
     <link rel="stylesheet" type="text/css" href="{% static 'css/navbar.css' %}">
     <link rel="stylesheet" type="text/css" href="{% static 'css/postListContent.css' %}">
     <link rel="stylesheet" type="text/css" href="{% static 'css/newPostModal.css' %}">
+    <script type="module">
+        import {createRemotePostBlocks} from '{% static 'js/index.js' %}';
+        var remotePosts = {{ posts|safe }};
+        createRemotePostBlocks(remotePosts);
+        setInterval(createRemotePostBlocks(remotePosts), 30000);
+    </script>
 </head>
 
 <body>
@@ -29,11 +35,6 @@
 <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
 <script src="{% static 'js/posting.js' %}"></script>
 <script src="{% static 'js/search.js' %}"></script>
-<script type="module">
-    import {createRemotePostBlocks} from '{% static 'js/index.js' %}';
-    var remotePosts = {{ posts|safe }};
-    createRemotePostBlocks(remotePosts);
-</script>
 </body>
 
 </html>
