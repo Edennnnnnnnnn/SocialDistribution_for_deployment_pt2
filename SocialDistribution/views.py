@@ -143,7 +143,7 @@ def indexView(request):
         hosts = Host.objects.filter(allowed=True)
         for host in hosts:
             if host.name == "SELF":
-                break
+                continue
             # Authorization Message Header:
             print("A")
             print("\nhost", host)
