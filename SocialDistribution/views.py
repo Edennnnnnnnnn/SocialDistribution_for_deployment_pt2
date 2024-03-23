@@ -1,5 +1,4 @@
 # django Pattern:
-import time
 from urllib import request
 from django.contrib.auth.hashers import check_password
 from django.http import HttpResponseForbidden
@@ -151,19 +150,18 @@ def indexView(request):
 
             # GET remote `users`:
             users_endpoint = host.host + 'users/'
-            users_response = requests.get(users_endpoint, headers=auth_headers)
+            users_response = requests.get(users_endpoint, headers=auth_headers, timeout=10)
             if users_response.status_code == 200:
                 for user in users_response.json():
                     # GET remote `posts` for each user:
                     posts_endpoint = f"{users_endpoint}{user.get('username')}/posts/"
-                    posts_response = requests.get(posts_endpoint, headers=auth_headers)
+                    posts_response = requests.get(posts_endpoint, headers=auth_headers, timeout=10)
                     if posts_response.status_code == 200:
                         posts = remove_bool_none_values(posts_response.json().get('posts'))
                         remote_posts.extend(posts)
     except:
         pass
     template_name = "index.html"
-    time.sleep(2)
     return render(request, template_name, {'posts': remote_posts})
 
 
