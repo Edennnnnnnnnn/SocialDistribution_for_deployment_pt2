@@ -209,7 +209,7 @@ class ServerNode(models.Model):
 
 class Host(models.Model):
     allowed = models.BooleanField(default=True)
-    host = models.URLField(max_length=250)
+    host = models.URLField(max_length=250, blank=True)
     name = models.CharField(max_length=200)
     username = models.CharField(max_length=50)
     password = models.CharField(max_length=50)
