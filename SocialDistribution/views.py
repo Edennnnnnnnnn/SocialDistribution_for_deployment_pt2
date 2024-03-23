@@ -1184,6 +1184,7 @@ class UsersOpenEndPt(viewsets.ModelViewSet):
             parts = auth_header.split(' ', 1)
             if len(parts) == 2 and parts[0].lower() == 'basic':
                 if authenticate_host(parts[1]):
+                    print("> USERS: AUTH PASS")
                     return super().list(request, *args, **kwargs)
         return Response(status=status.HTTP_401_UNAUTHORIZED)
 
@@ -1195,6 +1196,7 @@ class UserPostsOpenEndPt(APIView):
             parts = auth_header.split(' ', 1)
             if len(parts) == 2 and parts[0].lower() == 'basic':
                 if authenticate_host(parts[1]):
+                    print("> USER POSTS: AUTH PASS")
                     target_user = get_object_or_404(User, username=username)
                     posts = Post.objects.filter(author=target_user, is_draft=False).order_by('-date_posted')
                     user_serializer = UserSerializer(target_user)
@@ -1214,6 +1216,9 @@ def authenticate_host(encoded_credentials):
         username, password = decoded_credentials.split(':', 1)
         hosts = Host.objects.filter(name="SELF")
         for host in hosts:
+            print("host", host)
+            print(f"host.username={host.username} / username={username}")
+            print(f"host.password={host.password} / username={password}")
             if host.username == username and host.password == password:
                 return True
         return False
