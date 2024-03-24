@@ -1299,16 +1299,14 @@ def followRequesting(request, remoteNodename, requester_username, proj_username)
 
     FRAcceptURL = request.build_absolute_uri(f'/accept-remote-follow/{remoteNodename}/{requester_username}/{proj_username}/')
     FRRejectURL = request.build_absolute_uri(f'/reject-remote-follow/{remoteNodename}/{requester_username}/{proj_username}/')
-    requestBody = {
-        'click_to_accept_the_remote_follow_request': FRAcceptURL,
-        'click_to_reject_the_remote_follow_request': FRRejectURL
-    }
+    requestContent_accept = f'click_to_accept_[{FRAcceptURL}]'
+    requestContent_reject = f'click_to_reject_[{FRRejectURL}]'
 
     # Todo - Sent FR to spec-user's inbox at server `enjoy`:
     if remoteNodename == "enjoy":
         print(remoteNodename)
         print(remoteInbox)
-        response = requests.post(remoteInbox, json=requestBody)
+        response = requests.post(remoteInbox, json=None)
         response.raise_for_status()
 
     # Todo - Sent FR to spec-user's inbox at server `200OK`:
@@ -1316,7 +1314,7 @@ def followRequesting(request, remoteNodename, requester_username, proj_username)
         print(remoteNodename)
         print(remoteInbox)
         headers = {'username': host.username, 'password': host.password}
-        response = requests.post(remoteInbox, json=requestBody, headers=headers)
+        response = requests.post(remoteInbox, json=None, headers=headers)
         response.raise_for_status()
 
     # Todo - Sent FR to spec-user's inbox at server `hero` (other server):
@@ -1330,8 +1328,9 @@ def followRequesting(request, remoteNodename, requester_username, proj_username)
         }
         body = {
             "message_type": "FR",
+            "owner": proj_username,
             "origin": f"{requester_username} from Server `HTML HEROES`",
-            "content": requestBody,
+            "content": f"{requester_username} from Server `HTML HEROES` wants to follow you remotely, you may accept it by clicking {requestContent_accept}, or reject it by clicking {requestContent_reject}.",
         }
         response = requests.post(remoteInbox, json=body, headers=headers)
         try:
