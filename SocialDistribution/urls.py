@@ -6,9 +6,21 @@ from rest_framework.routers import SimpleRouter
 from . import views
 from .views import *
 
+from drf_yasg import openapi
+from drf_yasg.views import get_schema_view
+
 app_name = "SocialDistribution"
 
 router = SimpleRouter()
+
+schema_view = get_schema_view(
+    openapi.Info(
+        title="404 HTML Heros API",   # 名称
+        default_version="version v0.0.1",   # 版本
+        description="no description",  # 项目描述
+    ),
+    public=True,
+)
 
 urlpatterns = [
     # Basic PAGE View Settings:
@@ -19,7 +31,7 @@ urlpatterns = [
     path('logout/', LogoutView.as_view(), name='PAGE_Logout'),
     path("signup/", signupView, name="PAGE_Signup"),
     path("friendPosts/<str:username>/", approved_user_required(FriendPostsView.as_view()), name="PAGE_FriendPosts"),
-    path("inbox/<str:username>/", approved_user_required(InboxView.as_view()), name="PAGE_Inbox"),
+    path("inbox/<str:username>/", InboxView.as_view(), name="PAGE_Inbox"),
     path("posts/<int:post_id>/", approved_user_required(PostDetailView.as_view()), name="PAGE_postDetail"),
 
 
@@ -45,6 +57,8 @@ urlpatterns = [
 
     path('api/follow-requests/accept/<str:origin_username>/', AcceptFollowRequestAPIView.as_view(), name='accept-follow-request'),
     path('api/follow-requests/reject/<str:origin_username>/', RejectFollowRequestAPIView.as_view(), name='reject-follow-request'),
+    path('api/get-self-username/', GetSelfUsername.as_view(), name='get-self-username'),
+
 
     # Identity API System:
     path("api/user/<str:username>/", UserAPIView.as_view(), name="API_USER"),                                                               # GET Self User/Profile Info        --> Test Success
@@ -67,6 +81,7 @@ urlpatterns = [
     path("api/nps/", NPsAPIView.as_view(), name="API_NPs"),                                                                                 # POST NewPosts                     --> Test Success
     path('api/posts/<int:post_id>/', PostOperationAPIView.as_view(), name='API_PDetail'),                                                   # GET/PUT/DELETE PostsOperations
     path("api/posts/<int:post_id>/comments/", CommentAPIView.as_view(), name='API_PComms'),                                                 # GET/POST CommentList/NewComment   --> Test Success
+    path('api/posts/<int:post_id>/comments/<int:comment_id>/delete/', CommentDeleteAPIView.as_view(), name='comment-delete'),                                               
     path("api/posts/<int:post_id>/likes/", LikeAPIView.as_view(), name='API_PLikes'),                                                       # GET/POST LikeList/NewLike         --> Test Success
     path('api/posts/<int:post_id>/check-like/', check_like_status, name='check_like_status'),
     path('api/posts/<int:post_id>/share/', SharePostView.as_view(), name='share_post'),
@@ -83,7 +98,18 @@ urlpatterns = [
     # New NTN System:
     path("users/", UsersOpenEndPt.as_view({'get': 'list'}), name="OPEN_GETUsersList"),
     path('users/<str:username>/posts/', UserPostsOpenEndPt.as_view(), name='OPEN_GETUserPostsList'),
+    path("remoteprofile/<str:server_node_name>/<str:remoteUsername>/", approved_user_required(remoteProfileView), name="PAGE_RemoteProfile"),
+
+    path('followrequesting/<str:remoteNodename>/<str:requester_username>/<str:proj_username>/', followRequesting, name='API_PostRequesting'),
+    path('unfllowrequesting/<str:remoteNodename>/<str:user_username>/<str:proj_username>/', remove_follower, name='remove_follower'),
+    path('remotecheckfollower/<str:remoteNodename>/<str:user_username>/<str:proj_username>/', CheckFollowerView.as_view(), name='API_CheckFollower'),
+    path('accept-remote-follow/<str:remoteNodename>/<str:user_username>/<str:proj_username>/', acceptRemoteFollowRequest, name='OPEN_AcceptFollowRequest'),
+    path('reject-remote-follow/<str:remoteNodename>/<str:user_username>/<str:proj_username>/', rejectRemoteFollowRequest, name='OPEN_RejectFollowRequest'),
+
     path("api/users/", UsersAPIView.as_view({'get': 'list'}), name="API_ALL_USER"),
+
+    path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
+    path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
 ]
 
 # OpenAPI System:

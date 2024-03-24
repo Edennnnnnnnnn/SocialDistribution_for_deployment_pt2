@@ -28,7 +28,7 @@ class PostSerializer(serializers.ModelSerializer):
         return Like.objects.filter(post=obj).count()
 
     def get_comment_count(self, obj):
-        return Like.objects.filter(post=obj).count()
+        return Comment.objects.filter(post=obj).count()
     
     def get_is_shared(self, obj):
         return obj.shared_post is not None
@@ -57,15 +57,22 @@ class UserSerializer(serializers.ModelSerializer):
 class CommentSerializer(serializers.ModelSerializer):
     commenter_username = serializers.CharField(source='commenter.username', read_only=True)
     commenter_avatar_url = serializers.SerializerMethodField()
+    can_delete = serializers.SerializerMethodField()
+
     class Meta:
         model = Comment
-        fields = ['id', 'post', 'commenter', 'commenter_username', 'commenter_avatar_url', 'date_commented', 'comment_text']
+        fields = ['id', 'post', 'commenter', 'commenter_username', 'commenter_avatar_url', 'date_commented',
+                  'comment_text','can_delete']
 
     def get_commenter_avatar_url(self, obj):
         request = self.context.get('request')
         if obj.commenter.avatar and hasattr(obj.commenter.avatar, 'url'):
             return request.build_absolute_uri(obj.commenter.avatar.url)
         return request.build_absolute_uri(static('images/post-bg.jpg'))
+
+    def get_can_delete(self, obj):
+        request = self.context.get('request')
+        return obj.commenter == request.user or obj.post.author == request.user
 
 
 class LikeSerializer(serializers.ModelSerializer):
@@ -118,4 +125,31 @@ class OpenAPIServerNodeSerializer(serializers.ModelSerializer):
         model = ServerNode
         fields = ['id', 'name', 'host', 'userAPI', 'messageAPI']
 
+
+class ProjUserSerializer(serializers.ModelSerializer):
+    requesters = serializers.SerializerMethodField()
+    followers = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ProjUser
+        fields = [
+            'id', 'host', 'hostname', 'username', 'profile',
+            'remotePosts', 'remoteInbox', 'requesters', 'followers'
+        ]
+
+    def get_requesters(self, obj):
+        return json.loads(obj.requesters)
+
+    def get_followers(self, obj):
+        return json.loads(obj.followers)
+
+    def validate_requesters(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Requesters must be a list.")
+        return json.dumps(value)
+
+    def validate_followers(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Followers must be a list.")
+        return json.dumps(value)
 

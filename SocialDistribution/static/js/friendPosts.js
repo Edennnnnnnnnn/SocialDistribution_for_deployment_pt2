@@ -71,6 +71,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         .catch(error => console.error('Error:', error));
 });
 
+window.addEventListener('pageshow', function(event) {
+    if (sessionStorage.getItem('refreshOnBack') === 'true') {
+        sessionStorage.removeItem('refreshOnBack');
+        window.location.reload();
+    }
+});
+
 function _getURLUsername() {
     const pathSections = window.location.pathname.split('/');
     return pathSections[2];
@@ -85,7 +92,7 @@ function createImagesHTML(imageDataString) {
     for (let i = 1; i < imageDataArray.length; i += 2) {
         let base64Data = imageDataArray[i];
         if (base64Data.trim()) {
-            imagesHTML += `<img src="data:image/jpeg;base64,${base64Data}" class="post-image" style="max-width: 100%; height: auto;">`;
+            imagesHTML += `<img src="data:image/jpeg;base64,${base64Data}" class="post-image" style="width: 30%; max-height: 500px; margin: 0 10px">`;
         }
     }
     return imagesHTML;

@@ -100,6 +100,20 @@ class HostAdmin(admin.ModelAdmin):
     list_filter = ('allowed',)
 
 
+class ProjUserAdmin(admin.ModelAdmin):
+    list_display = ('username', 'hostname', 'host', 'profile')
+    search_fields = ('username', 'hostname')
+    readonly_fields = ('requesters', 'followers')
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super(ProjUserAdmin, self).get_form(request, obj, **kwargs)
+        if 'requesters' in form.base_fields:
+            form.base_fields['requesters'].help_text = "Enter a valid JSON array of usernames."
+        if 'followers' in form.base_fields:
+            form.base_fields['followers'].help_text = "Enter a valid JSON array of usernames."
+        return form
+
+
 admin.site.register(User, UserAdmin)
 admin.site.register(Post, PostAdmin)
 admin.site.register(Comment, CommentAdmin)
@@ -112,5 +126,6 @@ admin.site.register(SignUpSettings, SignUpAdmin)
 admin.site.register(GithubActivity, ActivityAdmin)
 admin.site.register(ServerNode, ServerNodeAdmin)
 admin.site.register(Host, HostAdmin)
+admin.site.register(ProjUser, ProjUserAdmin)
 
 

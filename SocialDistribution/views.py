@@ -6,6 +6,7 @@ from functools import wraps
 from django.contrib.auth.decorators import login_required
 from django.db import IntegrityError
 from django.http import Http404, HttpResponse
+from django.middleware.csrf import get_token
 from django.shortcuts import render, redirect, get_list_or_404, get_object_or_404
 from django.contrib.auth import login, authenticate, get_user_model
 from django.contrib.auth.models import User
@@ -16,7 +17,7 @@ from django.utils.decorators import method_decorator
 from django.views.generic import TemplateView, DetailView
 from django.db.models import Q
 from django.http import JsonResponse
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_http_methods
 from django.urls import reverse
 from django.core.files.base import ContentFile
 import base64
@@ -138,13 +139,17 @@ class PostDetailView(DetailView):
 def indexView(request):
     # CCC
     """ * [GET] Get The Home Page """
-    remote_posts = []
+    remote_posts = {"enjoy": [], "200OK": [], "hero": []}
     try:
         hosts = Host.objects.filter(allowed=True)
         print("hosts", hosts)
         for host in hosts:
+
+            # Todo - If self open channel, ignore;
             if host.name == "SELF" and host.allowed:
                 continue
+
+            # Todo - If account channel from team `enjoy` [0]:
             if host.name == "enjoy":
                 users_endpoint = host.host + 'authors/'
                 users_response = requests.get(users_endpoint, timeout=10)
@@ -154,6 +159,17 @@ def indexView(request):
                     print("users_response", users_response)
                     print("users_response.json().get()", users_response.json().get("items"))
                     for user in users_response.json().get("items"):
+                        username = user.get("displayName")
+                        proj_user, created = ProjUser.objects.get_or_create(
+                            host=host.host,
+                            hostname=host.name,
+                            username=username,
+                            profile=f"remoteprofile/{host.name}/{username}/",
+                            remoteInbox=f"{host.host}authors/{user.get('id')}/inbox/",
+                            remotePosts=f"{user.get('id')}/posts/"
+                        )
+                        if created:
+                            print("! ProjUser Created:", proj_user)
                         print("\nauthors", user)
                         # GET remote `posts` for each user:
                         posts_endpoint = f"{user.get('id')}/posts/"
@@ -163,13 +179,48 @@ def indexView(request):
                         if posts_response.status_code == 200:
                             posts = remove_bool_none_values(posts_response.json())
                             print("\n>> post", posts)
-                            remote_posts.extend(posts)
+                            remote_posts["enjoy"].extend(posts)
+
+            # Todo - If account channel from team `200OK` [1]:
+            elif host.name == "200OK":
+                auth_headers = {'username': f'{host.username}',
+                                'password': f'{host.password}'}
+                users_endpoint = host.host + 'authors/'
+                users_response = requests.get(users_endpoint, headers=auth_headers, timeout=10)
+                print("users_endpoint", users_endpoint)
+                print("users_response", users_response)
+                if users_response.status_code == 200:
+                    print("users_response", users_response)
+                    print("users_response.json().get()", users_response.json().get("items"))
+                    for user in users_response.json().get("items"):
+                        username = user.get("displayName")
+                        proj_user, created = ProjUser.objects.get_or_create(
+                            host=host.host,
+                            hostname=host.name,
+                            username=username,
+                            profile=f"remoteprofile/{host.name}/{username}/",
+                            remoteInbox=f"{host.host}service/authors/{user.get('id')}/inbox/",
+                            remotePosts=f"{host.host}authors/{user.get('id')}/posts/"
+                        )
+                        if created:
+                            print("! ProjUser Created:", proj_user)
+                        print("\nauthors", user)
+                        # GET remote `posts` for each user:
+                        posts_endpoint = f"{user.get('id')}/posts/"
+                        print("user.get('id')", user.get('id'))
+                        print("posts_endpoint", posts_endpoint)
+                        posts_response = requests.get(posts_endpoint, timeout=10)
+                        if posts_response.status_code == 200:
+                            posts = remove_bool_none_values(posts_response.json().get("items"))
+                            print("\n>> post", posts)
+                            remote_posts["200OK"].extend(posts)
+
+            # Todo - If account channel from team `heros` (other sever) [2]:
             else:
                 # Authorization Message Header:
                 credentials = base64.b64encode(f'{host.username}:{host.password}'.encode('utf-8')).decode('utf-8')
                 auth_headers = {'Authorization': f'Basic {credentials}'}
                 print("auth_headers", auth_headers)
-
                 authenticate_host(credentials)
 
                 # GET remote `users`:
@@ -179,6 +230,17 @@ def indexView(request):
                 print("users_response", users_response)
                 if users_response.status_code == 200:
                     for user in users_response.json():
+                        username = user.get("username")
+                        proj_user, created = ProjUser.objects.get_or_create(
+                            host=host.host,
+                            hostname=host.name,
+                            username=username,
+                            profile=f"remoteprofile/hero/{username}/",
+                            remoteInbox=f"{host.host}api/msgs/create/",
+                            remotePosts=f"{users_endpoint}{user.get('username')}/posts/"
+                        )
+                        if created:
+                            print("! ProjUser Created:", proj_user)
                         print("\nuser", user)
                         # GET remote `posts` for each user:
                         posts_endpoint = f"{users_endpoint}{user.get('username')}/posts/"
@@ -188,9 +250,9 @@ def indexView(request):
                         if posts_response.status_code == 200:
                             posts = remove_bool_none_values(posts_response.json().get('posts'))
                             print("\n>> post", posts)
-                            remote_posts.extend(posts)
-    except:
-        pass
+                            remote_posts["hero"].extend(posts)
+    except Exception as e:
+        print("Error:", e)
     template_name = "index.html"
     print("\n** posts", remote_posts)
     return render(request, template_name, {'posts': remote_posts})
@@ -221,8 +283,8 @@ class FPsAPIView(generics.ListAPIView):
         current_user = get_object_or_404(User, username=username)  # get current user
 
         user_following = User.objects.filter(reverse_following__user=current_user)
-        user_following_posts = Post.objects.filter(author__in=user_following, visibility='PUBLIC', is_draft=False)
-
+        user_following_posts = Post.objects.filter(author__in=user_following, visibility='PUBLIC', is_draft=False) 
+        
         friends = User.objects.filter(friends_set1__user1=current_user).values_list('friends_set1__user2', flat=True)
 
         friend_posts = Post.objects.filter(
@@ -236,6 +298,18 @@ class FPsAPIView(generics.ListAPIView):
             Q(author=current_user, visibility='FRIENDS'), is_draft=False
         )
 
+        all_proj_users = get_object_or_404(ProjUser)
+        print(all_proj_users)
+        # for proj_user in all_proj_users:
+        #     if (proj_user.has_follower(current_user)):
+        #         posts_endpoint = f"{user.get('id')}/posts/"
+        #         print("user.get('id')", user.get('id'))
+        #         print("posts_endpoint", posts_endpoint)
+        #         posts_response = requests.get(posts_endpoint, timeout=10)
+        #         if posts_response.status_code == 200:
+        #             posts = remove_bool_none_values(posts_response.json())
+        #             print("\n>> post", posts)
+            
         # Merge query sets and remove duplicates
         posts = user_following_posts | friend_posts | user_posts
         posts = posts.distinct().order_by('-date_posted')
@@ -431,6 +505,22 @@ class CommentAPIView(generics.ListCreateAPIView):
         context = super().get_serializer_context()
         context.update({'request': self.request})
         return context
+
+class CommentDeleteAPIView(generics.DestroyAPIView):
+    queryset = Comment.objects.all()
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_object(self):
+        comment_id = self.kwargs['comment_id']
+        comment = get_object_or_404(Comment, pk=comment_id)
+
+        # check if the user is the commenter or author
+        print(comment.commenter, comment.post.author, "评论，作者")
+        if comment.commenter == self.request.user or comment.post.author == self.request.user:
+            return comment
+        else:
+            # if not, raise error
+            raise PermissionDenied('You do not have permission to delete this comment.')
 
 
 class LikeAPIView(generics.ListCreateAPIView):
@@ -751,7 +841,7 @@ class CreateFollowerAPIView(APIView):
 
         if self_user != target_user:
             try:
-                Follower.objects.create(user=target_user, follower=self_user)
+                # Follower.objects.create(user=target_user, follower=self_user)
                 return Response(status=status.HTTP_201_CREATED)
             except IntegrityError:
                 return Response({"detail": "Already followed by this user."}, status=status.HTTP_400_BAD_REQUEST)
@@ -804,7 +894,15 @@ class CreateFollowingAPIView(APIView):
                     # Optional: Allow retrying a previously rejected request
                     following.status = 'PENDING'
                     following.save()
-                    return Response({"message": "Follow request resent."}, status=status.HTTP_200_OK)
+                    message_content = f'{self_user.username} wants to follow you.'
+                    MessageSuper.objects.create(
+                    owner=target_user,
+                    message_type='FR',  # Follow Request
+                    content=message_content,
+                    origin=self_user.username,
+                    )
+                    return Response({"message": "Follow request sent."}, status=status.HTTP_201_CREATED)
+                    # return Response({"message": "Follow request resent."}, status=status.HTTP_200_OK)
         else:
             return Response({"detail": "Cannot follow yourself."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -819,6 +917,12 @@ class AcceptFollowRequestAPIView(APIView):
         follow_request = get_object_or_404(Following, user=origin_user, following=target_user, status='PENDING')
         follow_request.status = 'ACCEPTED'
         follow_request.save()
+
+        Follower.objects.create(user=follow_request.following, follower=follow_request.user)
+        if Following.objects.filter(user=target_user, following=origin_user, status='ACCEPTED').exists():
+            # check if they are following each other
+            Friend.create_friendship(origin_user, target_user)
+
         return Response({"message": "Follow request accepted."}, status=status.HTTP_200_OK)
 
 
@@ -905,6 +1009,8 @@ def deleteFriendshipAPIView(request, selfUsername, targetUsername):
         return JsonResponse({'error': 'An unexpected error occurred.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+
+
 class AnalyzeRelationAPIView(APIView):
     """ [GET] Get The Relationship Between Two Users """
 
@@ -947,8 +1053,7 @@ class UserMessagesAPIView(ListAPIView):
 
 
 class CreateMessageAPIView(APIView):
-    permission_classes = [IsAuthenticated]
-
+    #permission_classes = [IsAuthenticated]
     def post(self, request, format=None):
         serializer = MessageSuperSerializer(data=request.data)
         if serializer.is_valid():
@@ -1087,48 +1192,9 @@ def searchUserOPENAPI(request, server_node_name, remoteUsername):
         return JsonResponse({'error': 'User not found'}, status=404)
 
 
-class CreateLocalProjUser(APIView):
-    def post(self, request, format=None):
-        print("request.data ---> ", request.data)
-        base_username = request.data.get('username')
-        email = request.data.get('email')
-        bio = request.data.get('bio')
-        server_node_name = request.data.get('server_node_name')
-        remoteOpenapi = request.data.get('remoteOpenapi')
-        remoteInboxAPI = request.data.get('remoteInboxAPI')
-        remoteFollowAPI = request.data.get('remoteFollowAPI')
-        unique_username = f"{server_node_name}.{base_username}"
-
-        print(unique_username)
-        # 检查是否已经存在具有相同节点和用户名组合的用户
-        if User.objects.filter(server_node_name=server_node_name, username=username).exists():
-            return Response({'error': 'User with the same node and username combination already exists.'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        serializer = UserSerializer(data=request.data)
-        print("serializer.is_valid():", serializer.is_valid())
-        print("serializer.errors:", serializer.errors)
-
-        if serializer.is_valid():
-            user = serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-# def generate_unique_username(server_node_name, base_username):
-#     # Generate a unique identifier (UUID)
-#     unique_identifier = uuid.uuid4().hex[:6]  # Using the first 6 characters of the UUID
-
-#     # Combine server_node_name, base_username, and unique identifier
-#     unique_username = f"{server_node_name}.{base_username}.{unique_identifier}"
-
-#     return unique_username
-
-def remoteProfileView(request, selfUsername, server_node_name, remoteUsername):
-    selfUser = get_object_or_404(User, username=selfUsername)
-    remoteUser = get_object_or_404(User, username=remoteUsername)
-    context = {
-        'user': remoteUser,
-        'posts': Post.objects.filter(author=remoteUser).order_by('-date_posted')
-    }
+def remoteProfileView(request, server_node_name, remoteUsername):
+    remoteUser = get_object_or_404(ProjUser, username=remoteUsername)
+    context = {'user': remoteUser, }
     return render(request, 'remoteProfile.html', context)
 
 
@@ -1153,30 +1219,6 @@ def _checkRelation(username1, username2):
         'mutual_follow': user1_follows_user2 and user2_follows_user1 and user1_followed_by_user2 and user2_followed_by_user1,
     }
     return Response(data)
-
-
-@api_view(['GET'])
-class AcceptRemoteFollowRequestOPENAPIView(APIView):
-    def get(self, request, nodename, localUsername, remoteUsername, format=None):
-        localUser = get_object_or_404(User, username=localUsername)
-        remoteUser = get_object_or_404(User, username=remoteUsername, server_node_name=nodename)
-
-        follow_request = get_object_or_404(Following, user=localUser, following=remoteUser, status='PENDING')
-        follow_request.status = 'ACCEPTED'
-        follow_request.save()
-        return Response({"message": "Follow request is accepted."}, status=status.HTTP_200_OK)
-
-
-@api_view(['GET'])
-class RejectRemoteFollowRequestOPENAPIView(APIView):
-    def get(self, request, nodename, localUsername, remoteUsername, format=None):
-        localUser = get_object_or_404(User, username=localUsername)
-        remoteUser = get_object_or_404(User, username=remoteUsername, server_node_name=nodename)
-
-        follow_request = get_object_or_404(Following, user=localUser, following=remoteUser, status='PENDING')
-        follow_request.status = 'REJECTED'
-        follow_request.save()
-        return Response({"message": "Follow request is rejected."}, status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])
@@ -1236,6 +1278,113 @@ class UserPostsOpenEndPt(APIView):
         return Response(status=status.HTTP_401_UNAUTHORIZED)
 
 
+class CheckFollowerView(APIView):
+    permission_classes = [IsAuthenticated]
+    def get(self, request, remoteNodename, user_username, proj_username):
+        try:
+            proj_user = ProjUser.objects.get(hostname=remoteNodename, username=proj_username)
+            is_follower = proj_user.has_follower(user_username)
+        except ProjUser.DoesNotExist:
+            raise Http404("Project user does not exist")
+        return Response({'is_follower': is_follower})
+
+
+#VVV
+@api_view(['GET'])
+def followRequesting(request, remoteNodename, requester_username, proj_username):
+    host = get_object_or_404(Host, name=remoteNodename)
+    proj_user = get_object_or_404(ProjUser, username=proj_username, hostname=remoteNodename)
+    proj_user.add_requester(requester_username)
+    remoteInbox = proj_user.remoteInbox
+
+    FRAcceptURL = request.build_absolute_uri(f'/accept-remote-follow/{remoteNodename}/{requester_username}/{proj_username}/')
+    FRRejectURL = request.build_absolute_uri(f'/reject-remote-follow/{remoteNodename}/{requester_username}/{proj_username}/')
+    requestBody = {
+        'click_to_accept_the_remote_follow_request': FRAcceptURL,
+        'click_to_reject_the_remote_follow_request': FRRejectURL
+    }
+
+    # Todo - Sent FR to spec-user's inbox at server `enjoy`:
+    if remoteNodename == "enjoy":
+        print(remoteNodename)
+        print(remoteInbox)
+        response = requests.post(remoteInbox, json=requestBody)
+        response.raise_for_status()
+
+    # Todo - Sent FR to spec-user's inbox at server `200OK`:
+    elif remoteNodename == "200OK":
+        print(remoteNodename)
+        print(remoteInbox)
+        headers = {'username': host.username, 'password': host.password}
+        response = requests.post(remoteInbox, json=requestBody, headers=headers)
+        response.raise_for_status()
+
+    # Todo - Sent FR to spec-user's inbox at server `hero` (other server):
+    else:
+        print(remoteNodename)
+        print(remoteInbox)
+        csrf_token = get_token(request)
+        headers = {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrf_token,
+        }
+        body = {
+            "message_type": "FR",
+            "origin": f"{requester_username} from Server `HTML HEROES`",
+            "content": requestBody,
+        }
+        response = requests.post(remoteInbox, json=body, headers=headers)
+        try:
+            response.raise_for_status()
+            data = response.json()
+            print('Message created successfully:', data)
+            return Response({"message": "Message created successfully.", "data": data}, status=status.HTTP_200_OK)
+        except requests.exceptions.HTTPError as e:
+            error = response.json()
+            print('Failed to create message:', response.status_code, response.reason, error)
+            return Response({"error": "Failed to create message.", "details": error}, status=response.status_code)
+
+
+@require_http_methods(["GET"])
+def remove_follower(request, remoteNodename, user_username, proj_username):
+    try:
+        proj_user = get_object_or_404(ProjUser, username=proj_username, hostname=remoteNodename)
+        if proj_user.has_follower(user_username):
+            proj_user.remove_follower(user_username)
+            return JsonResponse(
+                {"message": f"User {user_username} has been removed from the requester list of {proj_username}."}, status=200)
+        else:
+            return JsonResponse({"error": f"User {user_username} is not in the requester list of {proj_username}."}, status=404)
+    except Http404:
+        return JsonResponse({"error": "User or ProjUser not found."}, status=404)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@api_view(['GET'])
+def acceptRemoteFollowRequest(request, remoteNodename, user_username, proj_username):
+    try:
+        proj_User = get_object_or_404(ProjUser, username=proj_username, hostname=remoteNodename)
+        if proj_User.has_requester(user_username):
+            proj_User.remove_requester(user_username)
+        proj_User.add_follower(user_username)
+        return Response({"message": "Follow request is accepted."}, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+def rejectRemoteFollowRequest(request, remoteNodename, user_username, proj_username):
+    try:
+        proj_User = get_object_or_404(ProjUser, username=proj_username, hostname=remoteNodename)
+        if proj_User.has_requester(user_username):
+            proj_User.remove_requester(user_username)
+        return Response({"message": "Follow request is rejected, please try again later."}, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
 """ HELPER FUNC """
 def authenticate_host(encoded_credentials):
     try:
@@ -1265,7 +1414,14 @@ def remove_unwanted_values(data):
     else:
         return data
 
+
 def remove_bool_none_values(posts):
     return [remove_unwanted_values(post) for post in posts]
 
 
+class GetSelfUsername(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        print("username", request.user.username)
+        return Response({'username': request.user.username})
