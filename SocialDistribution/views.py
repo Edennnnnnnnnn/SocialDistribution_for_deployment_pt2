@@ -1442,17 +1442,17 @@ def followRequesting(request, remoteNodename, requester_username, proj_username)
         print(remoteNodename)
         print(remoteInbox)
         users_endpoint = host.host + 'authors/'
-        credentials = base64.b64encode(f'{host.username}:{host.password}'.encode('utf-8')).decode('utf-8')
         headers = {
             'Content-Type': 'application/json',
             'X-CSRFToken': get_token(request),
-            'Authorization': f'Basic {credentials}'
+            'username': f'{host.username}',
+            'password': f'{host.password}'
         }
         body = {
             "message_type": "FR",
             "owner": proj_username,
             "origin": f"{requester_username} from Server `HTML HEROES`",
-            "content": f"{requester_username} from Server `HTML HEROES` wants to follow you remotely, you may accept it by clicking [<a href=\"url\">{FRAcceptURL}</a>], or reject it by clicking [<a href=\"url\">{FRRejectURL}</a>].",
+            "content": f"{requester_username} from Server `HTML HEROES` wants to follow you remotely, you may accept it by clicking {requestContent_accept}, or reject it by clicking {requestContent_reject}.",
         }
         response = requests.post(remoteInbox, json=body, headers=headers)
         try:
