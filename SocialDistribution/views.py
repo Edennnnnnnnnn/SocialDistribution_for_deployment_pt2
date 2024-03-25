@@ -161,12 +161,14 @@ def indexView(request):
                     print("users_response.json().get()", users_response.json().get("items"))
                     for user in users_response.json().get("items"):
                         username = user.get("displayName")
+                        print("*****& user.id,", user.get("id"))
                         proj_user, created = ProjUser.objects.get_or_create(
                             host=host.host,
                             hostname=host.name,
                             username=username,
                             profile=f"remoteprofile/{host.name}/{username}/",
-                            remoteInbox=f"{host.host}authors/{user.get('id')}/inbox/",
+                            remoteInbox=f"https://enjoyers404-cfbb8f9455f1.herokuapp.com/follow-requests/",
+                            otherURL=user.get("id"),
                             remotePosts=f"{user.get('id')}/posts/"
                         )
                         if created:
@@ -1325,7 +1327,7 @@ def followRequesting(request, remoteNodename, requester_username, proj_username)
             'Content-Type': 'application/json',
             'X-CSRFToken': get_token(request)
         }
-        print(f"CHECK-01: {request.get_host()}/api/users/{requester_username}")
+        print(f"id: request.build_absolute_uri(f/api/users/{user.uuid}/)")
         print(f"CHECK-02: {request.get_host()}")
 
         body = {
@@ -1333,17 +1335,20 @@ def followRequesting(request, remoteNodename, requester_username, proj_username)
             "summary": f"Remote following request from {requester_username} at {remoteNodename}",
             "actor": {
                 "type": "author",
-                "id": f"https://{request.get_host()}/api/users/{user.uuid}",
-                "url": f"https://{request.get_host()}/api/users/{user.uuid}",
+                "id": request.build_absolute_uri(f"/api/users/{user.uuid}/"),
+                "url": request.build_absolute_uri(f"/api/users/{user.uuid}/"),
                 "host": request.get_host(),
                 "displayName": requester_username,
                 "github": FRAcceptURL,
                 "profileImage": FRRejectURL
             },
             "object": {
-                "id": f"https://{request.get_host()}/api/users/{user.uuid}"
+                "id": proj_user.otherURL
             }
         }
+        print("\n\n\n fucku")
+        print(body)
+        print("\n\n\n")
 
         response = requests.post(
             remoteInbox,
@@ -1436,9 +1441,12 @@ def followRequesting(request, remoteNodename, requester_username, proj_username)
     else:
         print(remoteNodename)
         print(remoteInbox)
+        users_endpoint = host.host + 'authors/'
         headers = {
             'Content-Type': 'application/json',
             'X-CSRFToken': get_token(request),
+            'username': f'{host.username}',
+            'password': f'{host.password}'
         }
         body = {
             "message_type": "FR",
@@ -1446,7 +1454,6 @@ def followRequesting(request, remoteNodename, requester_username, proj_username)
             "origin": f"{requester_username} from Server `HTML HEROES`",
             "content": f"{requester_username} from Server `HTML HEROES` wants to follow you remotely, you may accept it by clicking {requestContent_accept}, or reject it by clicking {requestContent_reject}.",
         }
-
         response = requests.post(remoteInbox, json=body, headers=headers)
         try:
             if response.status_code == 200:
@@ -1510,7 +1517,7 @@ def rejectRemoteFollowRequest(request, remoteNodename, user_username, proj_usern
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
-#TTT
+# TTT
 @require_POST
 def remoteComment(request, remoteNodename, proj_username, post_id):
     user = request.user
@@ -1543,7 +1550,8 @@ def remoteComment(request, remoteNodename, proj_username, post_id):
             if response.status_code == 200:
                 data = response.json()
                 print('Message created successfully:', data)
-                return Response({"message": "Comment Reminder created successfully.", "data": data}, status=status.HTTP_200_OK)
+                return Response({"message": "Comment Reminder created successfully.", "data": data},
+                                status=status.HTTP_200_OK)
             else:
                 try:
                     error = response.json()
@@ -1616,7 +1624,6 @@ def remoteLike(request, remoteNodename, proj_username, post_id):
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     else:
         pass
-
 
 
 """ HELPER FUNC """

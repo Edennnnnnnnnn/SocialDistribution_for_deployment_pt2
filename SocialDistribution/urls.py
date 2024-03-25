@@ -73,7 +73,7 @@ urlpatterns = [
     path("profile/<str:username>/update-username/", approved_user_required(update_username), name="API_UpdateUsername"),
     path('profile/<str:username>/update-github-username/', approved_user_required(views.update_github_username), name='PAGE_LinkGithub'),
     path('profile/<str:username>/update-github-username-submit/', approved_user_required(views.update_github_username_submit), name='API_UpdateGithubUsername'),
-    path("profile/<str:selfUsername>/<str:targetUsername>/", approved_user_required(otherProfileView), name="PAGE_OtherProfile"),
+    path("profile/<str:selfUsername>/<str:targetUsername>/", otherProfileView, name="PAGE_OtherProfile"),
 
     # Post API System:
     path("api/pps/", PPsAPIView.as_view(), name="API_PPs"),                                                                                 # GET PublicPostsList               --> Test Success
