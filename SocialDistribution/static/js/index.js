@@ -511,7 +511,7 @@ export function createRemotePostBlocks_2_hero(remotePosts) {
 
         postLink.innerHTML = userInfoHTML + contentHTML;
         postElement.appendChild(postLink);
-        postElement.innerHTML = postElement.innerHTML + interactionHTML + commentHTML;
+        postElement.innerHTML = postElement.innerHTML + //interactionHTML + commentHTML;
         postContainer.appendChild(postElement);
 
         const commentButton = postElement.querySelector(`button[data-post-id="${post.id}"]`);
