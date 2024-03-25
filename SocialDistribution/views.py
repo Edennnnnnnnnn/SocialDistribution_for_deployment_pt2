@@ -221,6 +221,7 @@ def indexView(request):
             # Todo - If account channel from team `heros` (other sever) [2]:
             else:
                 # Authorization Message Header:
+                """"""
                 credentials = base64.b64encode(f'{host.username}:{host.password}'.encode('utf-8')).decode('utf-8')
                 auth_headers = {'Authorization': f'Basic {credentials}'}
                 print(host.username, host.password)
@@ -229,7 +230,7 @@ def indexView(request):
 
                 # GET remote `users`:
                 users_endpoint = host.host + 'users/'
-                users_response = requests.get(users_endpoint, headers=auth_headers, timeout=10)
+                users_response = requests.get(users_endpoint, timeout=10)
                 print("users_endpoint", users_endpoint)
                 print("users_response", users_response)
                 if users_response.status_code == 200:
