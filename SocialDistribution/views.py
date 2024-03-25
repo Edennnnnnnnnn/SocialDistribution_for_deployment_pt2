@@ -1254,19 +1254,21 @@ class UsersOpenEndPt(viewsets.ModelViewSet):
     serializer_class = UserSerializer
 
     def list(self, request, *args, **kwargs):
+        """
         auth_header = request.headers.get('Authorization')
         if auth_header:
             parts = auth_header.split(' ', 1)
             if len(parts) == 2 and parts[0].lower() == 'basic':
                 print("A")
                 #if authenticate_host(parts[1]):
-                print("B")
-                return super().list(request, *args, **kwargs)
-        return Response(status=status.HTTP_401_UNAUTHORIZED)
+                print("B")"""
+        return super().list(request, *args, **kwargs)
+        #return Response(status=status.HTTP_401_UNAUTHORIZED)
 
 
 class UserPostsOpenEndPt(APIView):
     def get(self, request, username):
+        """
         auth_header = request.headers.get('Authorization')
         print("auth_header", auth_header)
         if auth_header:
@@ -1278,17 +1280,17 @@ class UserPostsOpenEndPt(APIView):
                 print("C")
                 print("authenticate_host(parts[1])", authenticate_host(parts[1]))
                 #if authenticate_host(parts[1]):
-                print("D")
-                target_user = get_object_or_404(User, username=username)
-                posts = Post.objects.filter(author=target_user, is_draft=False).order_by('-date_posted')
-                user_serializer = UserSerializer(target_user)
-                posts_serializer = PostSerializer(posts, many=True)
-                print("user", user_serializer.data)
-                print("posts", posts_serializer.data)
-                return Response({
-                    'user': user_serializer.data,
-                    'posts': posts_serializer.data
-                })
+                print("D")"""
+        target_user = get_object_or_404(User, username=username)
+        posts = Post.objects.filter(author=target_user, is_draft=False).order_by('-date_posted')
+        user_serializer = UserSerializer(target_user)
+        posts_serializer = PostSerializer(posts, many=True)
+        print("user", user_serializer.data)
+        print("posts", posts_serializer.data)
+        return Response({
+            'user': user_serializer.data,
+            'posts': posts_serializer.data
+        })
     #return Response(status=status.HTTP_401_UNAUTHORIZED)
 
 
