@@ -246,6 +246,7 @@ class ProjUser(models.Model):
     profile = models.URLField(max_length=250, blank=True)
     remotePosts = models.URLField(max_length=250, blank=True)
     remoteInbox = models.URLField(max_length=250, blank=True)
+    otherURL = models.URLField(max_length=250, blank=True)
     requesters = models.TextField(default='[]', blank=True)
     followers = models.TextField(default='[]', blank=True)
 

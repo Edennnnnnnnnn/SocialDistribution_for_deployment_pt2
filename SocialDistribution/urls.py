@@ -30,8 +30,8 @@ urlpatterns = [
     path("addConnect/", AddConnectView.as_view(), name="PAGE_AddConnect"),
     path('logout/', LogoutView.as_view(), name='PAGE_Logout'),
     path("signup/", signupView, name="PAGE_Signup"),
-    path("friendPosts/<str:username>/", approved_user_required(FriendPostsView.as_view()), name="PAGE_FriendPosts"),
-    path("inbox/<str:username>/", InboxView.as_view(), name="PAGE_Inbox"),
+    path("friendPosts/<str:username>/", approved_user_required(views.FriendPostsView), name="PAGE_FriendPosts"),
+    path("inbox/<str:username>/", approved_user_required(InboxView.as_view()), name="PAGE_Inbox"),
     path("posts/<int:post_id>/", approved_user_required(PostDetailView.as_view()), name="PAGE_postDetail"),
 
 
@@ -108,6 +108,10 @@ urlpatterns = [
 
     path("api/users/", UsersAPIView.as_view({'get': 'list'}), name="API_ALL_USER"),
 
+    path("remote/posts/<str:post_id>/comments/", views.remoteComment, name='REMOTE_PComms'),
+    path("remote/posts/<str:post_id>/like/", views.remoteLike, name='REMOTE_PLikes'),
+
+    # API docs
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
 ]

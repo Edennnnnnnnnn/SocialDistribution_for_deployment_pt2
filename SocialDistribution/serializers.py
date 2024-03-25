@@ -134,7 +134,7 @@ class ProjUserSerializer(serializers.ModelSerializer):
         model = ProjUser
         fields = [
             'id', 'host', 'hostname', 'username', 'profile',
-            'remotePosts', 'remoteInbox', 'requesters', 'followers'
+            'remotePosts', 'remoteInbox', 'otherURL', 'requesters', 'followers'
         ]
 
     def get_requesters(self, obj):
