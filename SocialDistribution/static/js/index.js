@@ -43,13 +43,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         ${createImagesHTML(post.image_data)}
                     </div>
                 `;
-                // <img src="${post.image_data}>
+                
                 const interactionHTML = `
                     <div class="interact-container">
-                        <!-- <button id="share-${post.id}" type="button" data-post-id="${post.id}">
-                            <ion-icon size="small" name="share-outline" style="margin-right: 8px;"></ion-icon>
-                            Share <span class="share-count">${post.share_count}</span>
-                        </button> -->
+                        
                         <button id="comment-${post.id}" type="button" data-post-id="${post.id}">
                             <ion-icon size="small" name="chatbox-ellipses-outline" style="margin-right: 8px;">
                             </ion-icon>
@@ -66,21 +63,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>  
                 `;
 
+                
+                
                 // Append userInfoHTML, contentHTML, and interactionHTML to postLink instead of postElement
-                // postLink.innerHTML = userInfoHTML + contentHTML + interactionHTML;
-                postLink.innerHTML = userInfoHTML + contentHTML + interactionHTML;
+                
+                postLink.innerHTML = userInfoHTML + contentHTML;
                 postElement.appendChild(postLink);
-                // postElement.innerHTML = postElement.innerHTML  + commentHTML;
+                postElement.innerHTML = postElement.innerHTML + interactionHTML;
                 postContainer.appendChild(postElement);
 
                 // comment listener
                 const commentButton = postElement.querySelector(`button[data-post-id="${post.id}"]`);
                 if (commentButton) {
                     commentButton.addEventListener('click', function() {
-                        event.preventDefault();
+                        
 
                         // display the input box
-                        commentModal.style.display = 'block';
+                        // commentModal.style.display = 'block';
+                        commentModal.style.display = commentModal.style.display === 'block' ? 'none' : 'block';
                         submitCommentButton.setAttribute('data-post-id', post.id);
                     });
                 }
@@ -278,13 +278,73 @@ export function createRemotePostBlocks_0_enjoy(remotePosts) {
             </div>
         `;
 
-        postLink.innerHTML = userInfoHTML + contentHTML + interactionHTML;
+        const commentHTML = `
+            <div id="comment-modal-${post.id}" style="display:none;">
+                <textarea id="comment-text-${post.id}"></textarea>
+                <button id="submit-comment-${post.id}">Confirm</button>
+                <button id="cancel-comment-${post.id}">Cancel</button>
+            </div>
+        `;
+
+        postLink.innerHTML = userInfoHTML + contentHTML;
         postElement.appendChild(postLink);
-        // postElement.innerHTML += interactionHTML;
+        postElement.innerHTML = postElement.innerHTML + interactionHTML + commentHTML;
         postContainer.appendChild(postElement);
+
+        const commentButton = postElement.querySelector(`button[data-post-id="${post.id}"]`);
+        const commentModal = document.getElementById(`comment-modal-${post.id}`);
+        const submitCommentButton = document.getElementById(`submit-comment-${post.id}`);
+        const cancelCommentButton = document.getElementById(`cancel-comment-${post.id}`);
+        const commentInput = document.getElementById(`comment-text-${post.id}`);
+        if (commentButton) {
+            commentButton.addEventListener('click', function() {
+
+                // display the input box
+                commentModal.style.display = commentModal.style.display === 'block' ? 'none' : 'block';
+
+                // submitCommentButton.setAttribute('data-post-id', post.id);
+                submitCommentButton.addEventListener('click', () => {
+                    const commentText = commentInput.value.trim();
+                    if (commentText === '') {
+                        alert('Please enter a comment.');
+                        return;
+                    }
+
+                    fetch(`/api/posts/200OK/${post.author.displayName}/${post.id}/comments/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': getCookie('csrftoken'),
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ comment_text: commentText })
+                    })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP error! status: ${response.status}`);
+                            }
+                            return response.json();
+                        })
+                        .then(() => {
+                            document.getElementById('comment-modal').style.display = 'none';
+                            document.getElementById('comment-text').value = ''; // clear the input box
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('Error posting comment.');
+                        });
+                    commentModal.style.display = 'none';
+                    commentInput.value = '';
+                });
+            });
+        }
+        cancelCommentButton.addEventListener('click', () => {
+            console.log("cancel button clicked");
+            commentInput.value = ''; // clear the input box
+        });
     });
     sortPostsByDate();
 }
+
 
 
 export function createRemotePostBlocks_1_200OK(remotePosts) {
@@ -441,13 +501,72 @@ export function createRemotePostBlocks_2_hero(remotePosts) {
                 ${isImageData(post.content) ? createImagesHTML(post.content) : `<p class="remote-post-content">${post.content}</p>`}
             </div>
         `;
+        const commentHTML = `
+            <div id="comment-modal-${post.id}" style="display:none;">
+                <textarea id="comment-text-${post.id}"></textarea>
+                <button id="submit-comment-${post.id}">Confirm</button>
+                <button id="cancel-comment-${post.id}">Cancel</button>
+            </div>
+        `;
 
         postLink.innerHTML = userInfoHTML + contentHTML;
         postElement.appendChild(postLink);
+        postElement.innerHTML = postElement.innerHTML + interactionHTML + commentHTML;
         postContainer.appendChild(postElement);
-    });
-}
 
+        const commentButton = postElement.querySelector(`button[data-post-id="${post.id}"]`);
+        const commentModal = document.getElementById(`comment-modal-${post.id}`);
+        const submitCommentButton = document.getElementById(`submit-comment-${post.id}`);
+        const cancelCommentButton = document.getElementById(`cancel-comment-${post.id}`);
+        const commentInput = document.getElementById(`comment-text-${post.id}`);
+        if (commentButton) {
+            commentButton.addEventListener('click', function() {
+
+                // display the input box
+                commentModal.style.display = commentModal.style.display === 'block' ? 'none' : 'block';
+
+                // submitCommentButton.setAttribute('data-post-id', post.id);
+                submitCommentButton.addEventListener('click', () => {
+                    const commentText = commentInput.value.trim();
+                    if (commentText === '') {
+                        alert('Please enter a comment.');
+                        return;
+                    }
+
+                    fetch(`/api/posts/200OK/${post.author.displayName}/${post.id}/comments/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': getCookie('csrftoken'),
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ comment_text: commentText })
+                    })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP error! status: ${response.status}`);
+                            }
+                            return response.json();
+                        })
+                        .then(() => {
+                            document.getElementById('comment-modal').style.display = 'none';
+                            document.getElementById('comment-text').value = ''; // clear the input box
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('Error posting comment.');
+                        });
+                    commentModal.style.display = 'none';
+                    commentInput.value = '';
+                });
+            });
+        }
+        cancelCommentButton.addEventListener('click', () => {
+            console.log("cancel button clicked");
+            commentInput.value = ''; // clear the input box
+        });
+    });
+    sortPostsByDate();
+}
 
 window.addEventListener('pageshow', function(event) {
     if (sessionStorage.getItem('refreshOnBack') === 'true') {

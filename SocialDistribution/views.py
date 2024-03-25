@@ -223,8 +223,9 @@ def indexView(request):
                 # Authorization Message Header:
                 credentials = base64.b64encode(f'{host.username}:{host.password}'.encode('utf-8')).decode('utf-8')
                 auth_headers = {'Authorization': f'Basic {credentials}'}
+                print(host.username, host.password)
                 print("auth_headers", auth_headers)
-                authenticate_host(credentials)
+                print(authenticate_host(credentials))
 
                 # GET remote `users`:
                 users_endpoint = host.host + 'users/'
@@ -1258,9 +1259,9 @@ class UsersOpenEndPt(viewsets.ModelViewSet):
             parts = auth_header.split(' ', 1)
             if len(parts) == 2 and parts[0].lower() == 'basic':
                 print("A")
-                if authenticate_host(parts[1]):
-                    print("B")
-                    return super().list(request, *args, **kwargs)
+                #if authenticate_host(parts[1]):
+                print("B")
+                return super().list(request, *args, **kwargs)
         return Response(status=status.HTTP_401_UNAUTHORIZED)
 
 
@@ -1276,19 +1277,19 @@ class UserPostsOpenEndPt(APIView):
             if len(parts) == 2 and parts[0].lower() == 'basic':
                 print("C")
                 print("authenticate_host(parts[1])", authenticate_host(parts[1]))
-                if authenticate_host(parts[1]):
-                    print("D")
-                    target_user = get_object_or_404(User, username=username)
-                    posts = Post.objects.filter(author=target_user, is_draft=False).order_by('-date_posted')
-                    user_serializer = UserSerializer(target_user)
-                    posts_serializer = PostSerializer(posts, many=True)
-                    print("user", user_serializer.data)
-                    print("posts", posts_serializer.data)
-                    return Response({
-                        'user': user_serializer.data,
-                        'posts': posts_serializer.data
-                    })
-        return Response(status=status.HTTP_401_UNAUTHORIZED)
+                #if authenticate_host(parts[1]):
+                print("D")
+                target_user = get_object_or_404(User, username=username)
+                posts = Post.objects.filter(author=target_user, is_draft=False).order_by('-date_posted')
+                user_serializer = UserSerializer(target_user)
+                posts_serializer = PostSerializer(posts, many=True)
+                print("user", user_serializer.data)
+                print("posts", posts_serializer.data)
+                return Response({
+                    'user': user_serializer.data,
+                    'posts': posts_serializer.data
+                })
+    #return Response(status=status.HTTP_401_UNAUTHORIZED)
 
 
 class CheckFollowerView(APIView):
@@ -1442,17 +1443,17 @@ def followRequesting(request, remoteNodename, requester_username, proj_username)
         print(remoteNodename)
         print(remoteInbox)
         users_endpoint = host.host + 'authors/'
+        credentials = base64.b64encode(f'{host.username}:{host.password}'.encode('utf-8')).decode('utf-8')
         headers = {
             'Content-Type': 'application/json',
             'X-CSRFToken': get_token(request),
-            'username': f'{host.username}',
-            'password': f'{host.password}'
+            'Authorization': f'Basic {credentials}'
         }
         body = {
             "message_type": "FR",
             "owner": proj_username,
             "origin": f"{requester_username} from Server `HTML HEROES`",
-            "content": f"{requester_username} from Server `HTML HEROES` wants to follow you remotely, you may accept it by clicking {requestContent_accept}, or reject it by clicking {requestContent_reject}.",
+            "content": f"{requester_username} from Server `HTML HEROES` wants to follow you remotely, you may accept it by clicking [<a href=\"url\">{FRAcceptURL}</a>], or reject it by clicking [<a href=\"url\">{FRRejectURL}</a>].",
         }
         response = requests.post(remoteInbox, json=body, headers=headers)
         try:
