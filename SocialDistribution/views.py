@@ -251,7 +251,7 @@ def indexView(request):
                         posts_endpoint = f"{users_endpoint}{user.get('username')}/posts/"
                         print("user.get('username')", user.get('username'))
                         print("posts_endpoint", posts_endpoint)
-                        posts_response = requests.get(posts_endpoint, headers=auth_headers, timeout=10)
+                        posts_response = requests.get(posts_endpoint, timeout=10)
                         if posts_response.status_code == 200:
                             posts = remove_bool_none_values(posts_response.json().get('posts'))
                             # print("\n>> post", posts)
